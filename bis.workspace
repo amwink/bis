@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeLite_Workspace Name="bis" Database="" Version="10000" SWTLW="Yes">
+  <WorkspaceParserMacros/>
+  <WorkspaceParserPaths>
+    <Include Path="/usr/include"/>
+    <Include Path="/usr/local/include"/>
+  </WorkspaceParserPaths>
+  <Project Name="z" Path="z/z.project" Active="No"/>
+  <Project Name="znz" Path="znz/znz.project" Active="No"/>
+  <Project Name="nifti" Path="nifti/nifti.project" Active="No"/>
+  <Project Name="canabis" Path="canabis/canabis.project" Active="No"/>
+  <Project Name="probis" Path="probis/probis.project" Active="No"/>
+  <Project Name="biskits" Path="biskits/biskits.project" Active="Yes"/>
+  <BuildMatrix>
+    <WorkspaceConfiguration Name="Debug" Selected="yes">
+      <Environment/>
+      <Project Name="z" ConfigName="Debug"/>
+      <Project Name="znz" ConfigName="Debug"/>
+      <Project Name="nifti" ConfigName="Debug"/>
+      <Project Name="canabis" ConfigName="Debug"/>
+      <Project Name="probis" ConfigName="Debug"/>
+      <Project Name="biskits" ConfigName="Debug"/>
+    </WorkspaceConfiguration>
+    <WorkspaceConfiguration Name="Release" Selected="yes">
+      <Environment/>
+      <Project Name="z" ConfigName="Release"/>
+      <Project Name="znz" ConfigName="Release"/>
+      <Project Name="nifti" ConfigName="Release"/>
+      <Project Name="canabis" ConfigName="Release"/>
+      <Project Name="probis" ConfigName="Release"/>
+      <Project Name="biskits" ConfigName="Release"/>
+    </WorkspaceConfiguration>
+  </BuildMatrix>
+</CodeLite_Workspace>
