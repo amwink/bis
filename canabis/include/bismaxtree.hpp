@@ -79,8 +79,9 @@ public:
 			break;
 		case 8:
 			assert ( sizes.size() == 2 );
-			neighbours = { -strides[1] - 1, -strides[1], -strides[1] + 1, -1, 1, strides[1] - 1, strides[1],
-			               strides[1] + 1
+			neighbours = { -strides[1] - 1, -strides[1], -strides[1] + 1, 
+									   - 1,							   1,
+							strides[1] - 1,	 strides[1],  strides[1] + 1
 			             };
 			break;
 		case 6:
@@ -90,11 +91,14 @@ public:
 		case 26:
 			assert ( sizes.size() == 3 );
 			neighbours = { -strides[2] - strides[1] - 1, -strides[2] - strides[1], -strides[2] - strides[1] + 1,
-			               -strides[2] - 1, -strides[2], -strides[2] + 1, -strides[2] + strides[1] - 1, -strides[2] + strides[1],
-			               -strides[2] + strides[1] + 1, -strides[1] - 1, -strides[1], -strides[1] + 1, -1, 1, strides[1] - 1,
-			               strides[1], strides[1] + 1, strides[2] - strides[1] - 1, strides[2] - strides[1],
-			               strides[2] - strides[1] + 1, strides[2] - 1, strides[2], strides[2] + 1, strides[2] + strides[1] - 1,
-			               strides[2] + strides[1], strides[2] + strides[1] + 1
+			               -strides[2] - 1,              -strides[2],                           -strides[2] + 1, 
+						   -strides[2] + strides[1] - 1, -strides[2] + strides[1], -strides[2] + strides[1] + 1, 
+						                -strides[1] - 1,              -strides[1],              -strides[1] + 1, 
+						                             -1,                                                      1, 
+										 strides[1] - 1,			   strides[1], 				 strides[1] + 1, 
+						   strides[2] - strides[1] - 1,   strides[2] - strides[1],	strides[2] - strides[1] + 1, 
+						   strides[2] - 1, 				  strides[2], 				strides[2]				+ 1, 
+						   strides[2] + strides[1] - 1,	  strides[2] + strides[1],	strides[2] + strides[1] + 1
 			             };
 			break;
 		}
@@ -227,64 +231,81 @@ public:
 			//
 
 			// stack for flooding levels
-			std::vector<size_t> level_vec ( levels );
-			std::stack<size_t, std::vector<size_t>> level_stack ( std::move ( level_vec ) );
+			std::vector<long> 
+				level_vec ( levels );
+			std::stack<long, std::vector<long>> 
+				level_stack ( std::move ( level_vec ) );
 
-			// priority queue for filtered pixels
-			std::priority_queue<size_t, std::vector<size_t>, std::less<size_t>> node_queue ( quant.begin(), quant.end() );
+			// priority queue for filtered pixel values
+			std::priority_queue<long, std::vector<long>, std::less<size_t>> 
+				node_queue ( quant.begin(), quant.end() );
+
+			// apart from a node's parent, we also store the area...
+			std::vector <long> 
+				area ( quant.size(), 1 );
+			// ... and a flag that the node has been prcessed
+			std::vector <bool>
+				processed ( quant.size(), false );
 
 			// init tree: push the index of a minimal intensity onto queue and stack
 			// indices [ 0 ] is the first index in the image with the lowest intensity-
 			// lowest because the indices are of the sorted intensities, and first be-
 			// cause a stable sort has been used.
-			node_queue.push  ( indices[0] );
+			
+			// node_queue.push  ( indices[0] ); // queue already has all
 			level_stack.push ( indices[0] );
-			parent[indices[0]] = 0;
-
-			long
-				unprocessed = levels + 1,
-				   in_queue = levels + 2;
+			parent [ indices [ 0] ] = 0;
 
 			while ( !node_queue.empty() ) {
 
-				bool time_to_pop = true;
+				bool ready_to_pop = true;
 
 				// start flooding
-				auto n = node_queue.top();       // pixel that represents a level   (in the filter queue)
-				auto p = level_stack.top();      // level as represented by a pixel (in the levels stack)
-				assert ( quant[n] == quant[p] ); // so they should be the same at the start of flooding
+				auto p = node_queue.top();       // pixel that represents a level   (in the filter queue)
+				auto l = level_stack.top();      // level as represented by a pixel (in the levels stack)
+				assert ( quant[p] == quant[l] ); // so they should be the same at the start of flooding
 
-				for ( auto nb : neighbours ) {
 
-					auto nbindex = n + nb; // p (index of quant pixel + offset in neighbourhood)
 
-					if ( parent[nbindex] == unprocessed ) {
+				for ( int k = 0; k < neighbours.size(); k++ ) { // k: neighbour offset
+					long n = p + neighbours[k];                 // q: neighbour position
 
-						node_queue.push ( nbindex );
-						parent[nbindex] = in_queue;
+					// only continue if the neighbour position is inside the image
+					if ( ( n > -1 ) && ( n < indices.size() ) && this->valid_neighbours ( n, p ) ) {
 
-						if ( quant[n] < quant[nbindex] ) { // one of the unprocessed neighbours is higher
-							level_stack.push ( nbindex ); // leave 'for', return to the start of 'while'
-							time_to_pop = false;
-							break;
-						} // if q > p
+						if ( parent[n] == -1 ) {    // if neighbour not yet visited -- no curent parent
 
-					} // if processed
+							node_queue.push ( n );  // then place neighbour in the queue
+							parent[n] = 0;          // and change parent to intermediate 
 
-					// if the neighbourhood of p is lower than p, we are done
-					// (will not happen as long as the break stops the loop)
-					time_to_pop = true;
+							if ( quant[p] < quant[n] ) {  // if one of the unprocessed neighbours is higher
+								level_stack.push ( n );   // leave 'for', return to the start of 'while'
+								ready_to_pop = false;
+								break;							
+							} // if quant[n] < quant[p]
 
+						} // if processed
+
+					} // if valid neighbours
+					
 				} // for neighbours
 
-				if ( time_to_pop ) {
+
+
+				if ( ready_to_pop ) {
 
 					node_queue.pop();
-					parent[n] = p;
+					parent[p] = l;
+					
+					
+					
 				}
 
-			} // while node_queue
-		}
+
+
+			} // while node_queue not empty
+			
+		} // if wilkinson method
 
 		std::cout << "data" << std::endl;
 		std::cout << ( *this ) << std::endl;
