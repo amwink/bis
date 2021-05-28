@@ -415,37 +415,54 @@ class bisimage {
      * in the 1D data vector, what are its multidimensional
      * indices?
      */
-    inline bool valid_neighbours ( long offset1, long offset2, long delta = 2 ) {
+    inline bool valid_neighbours ( long offset1, long offset2, long delta = 1 ) {
 
 		long
 			off1 = offset1, 
 			off2 = offset2,
-			pos1, pos2;
+			pos1, pos2,
+			pd = 0;
 		bool valid = true;
-
+			
+		if ( ( (off1 == 10) || (off1 == 11) ) && ( (off2 == 5) || (off2 == 6) ) )
+			std::cout << "off1, off2 = " << off1 << "," << off2;
+			
         for ( long d = sizes.size()-1; d>=0; d-- ) {
 			
             pos1  = off1 / strides[d];
+            pos2  = off2 / strides[d];		
 			off1 -= pos1 * strides[d];
-            pos2  = off2 / strides[d];
 			
 			if (  ( ( pos1 - pos2 ) >  delta ) ||
-				  ( ( pos1 - pos2 ) < -delta )  ) {
+				  ( ( pos1 - pos2 ) < -delta ) ) {
 					  
 				valid = false;
 				break;
 				
 			} else {
-			
-				off2 -= pos2 * strides[d];
+
+				off2  -= pos2 * strides[d];
+				
+				if ( pos1 != pos2 ) 
+					pd++;
+				
+				if ( pd > delta ) {
+					valid = false;
+					break;
+				}	
 			
 			} // if pos
-			
+					
 		} // for d
 
-        return valid;
+		if ( ( (off1 == 10) || (off1 == 11) ) && ( (off2 == 5) || (off2 == 6) ) )
+			std::cout << valid << std::endl;
+		
+        return ( valid );
 
     }
+	
+
 
     /** \brief getsize() - returns the dimensions
      *

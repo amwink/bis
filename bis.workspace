@@ -9,8 +9,8 @@
   <Project Name="znz" Path="znz/znz.project" Active="No"/>
   <Project Name="nifti" Path="nifti/nifti.project" Active="No"/>
   <Project Name="canabis" Path="canabis/canabis.project" Active="No"/>
-  <Project Name="probis" Path="probis/probis.project" Active="No"/>
-  <Project Name="biskits" Path="biskits/biskits.project" Active="Yes"/>
+  <Project Name="probis" Path="probis/probis.project" Active="Yes"/>
+  <Project Name="biskits" Path="biskits/biskits.project" Active="No"/>
   <BuildMatrix>
     <WorkspaceConfiguration Name="Debug" Selected="yes">
       <Environment/>
