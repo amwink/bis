@@ -201,7 +201,7 @@ int main()
 
         bisnifti<unsigned short> test_image;  
       
-		/* 3d test 
+		/* 3d test */
 		test_image.array_init( { 2, 2, 1, 1, 1,
 								 1, 1, 1, 2, 2,      // slice 1
 								 
@@ -209,14 +209,14 @@ int main()
 								 1, 1, 1, 2, 3 } );  // slice 2
 		test_image.reshape ( { 5, 2, 2 } );          // see the shape above */
 
-		/* 2d test */ 
+		/* 2d test 
 		test_image.array_init ( { 3, 3, 1, 4, 2,     // see 10.1109/ICIP.2007.4379949
 								  4, 1, 2, 3, 1 } ); // only 1 slice 
 		test_image.reshape    ( { 5, 2 }          ); // see the shape above */
 		
         bismaxtree<unsigned short> test_mt ( test_image,                      // image of which to build the maxtree
-											 4,                               // number of levels ( test image: 4 )
-											 4, // type of connectivity (4|8 for 2D, 6|26 for 3D)
+											 3,                               // number of levels ( test image: 4 )
+											 6, // type of connectivity (4|8 for 2D, 6|26 for 3D)
 											 "Berger" );                      // method ( "Berger" works, "Wilkinson" will be added)
 
     }

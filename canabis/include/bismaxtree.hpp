@@ -193,7 +193,8 @@ public:
 				long 
 					p     = indices[i]; // point at index
 				parent[p] = p;          // pixel at this (higher level) starts as parent
-				zpar[p]   = p;          //							as union-find parent
+				zpar  [p] = p;          //							as union-find parent
+				root  [p] = p;
 
 				auto x    = p;          // keep this as zpar
 
@@ -215,11 +216,23 @@ public:
 							while ( r != zpar[r] ) //     whose zpar points to itself
 								r = zpar[r];
 
-							if ( r != p ) {
+							if ( r != x ) {
 								
-								parent[r] = p;
-								zpar[r] = p;
-
+								parent[root[r]] = p;
+								
+								if (rank[x] < rank[r]){
+									zpar[x]=r;
+									root[r]=p;
+									x=r;
+								} else {
+									if (rank[r]<rank[p]) {
+										zpar[r]=p;
+									} else {
+										zpar[r]=p;
+										rank[p]+=1;
+									}
+								}
+								
 								// this is valid for Bergers 2007 ICIP example
 								// std::cout << " whose new root is now " << p << " (" << letters[p] << ")";
 
