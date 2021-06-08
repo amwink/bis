@@ -181,8 +181,8 @@ int main()
         bisimage <int> image4d ( { 2, 3, 4, 5 } );
         std::vector <int> values ( 120 );
         std::iota ( values.begin(), values.end(), 0 );
-        std::copy ( values.begin(), values.end(), image4d.getdata_ptr()->begin() );
-        std::cout << *(image4d.getdata_ptr()) << std::endl;
+        image4d.vector_import( values );
+        std::cout << image4d.vector_export() << std::endl;
         for ( auto dim: {0,1,2,3} ) {
             auto sum_image = image4d.sum(dim);
             std::cout << sum_image << std::endl;
@@ -199,25 +199,79 @@ int main()
         // Test maxtree -- for doing mathematical morphology
         //
 
-        bisnifti<unsigned short> test_image;  
+        bisimage<unsigned short> test_image;  
       
 		/* 3d test */
-		test_image.array_init( { 2, 2, 1, 1, 1,
-								 1, 1, 1, 2, 2,      // slice 1
+		test_image.array_init( { 0, 1, 0, 0, 0, 0,
+								 0, 1, 1, 0, 0, 0,
+								 0, 1, 2, 3, 0, 0,
+								 0, 1, 2, 3, 1, 0,
+								 0, 1, 2, 0, 0, 0,      // slice 1
 								 
-								 3, 2, 1, 1, 1,
-								 1, 1, 1, 2, 3 } );  // slice 2
-		test_image.reshape ( { 5, 2, 2 } );          // see the shape above */
+								 0, 2, 1, 0, 0, 0,
+								 0, 2, 1, 3, 2, 0,
+								 0, 2, 1, 3, 2, 0,
+								 0, 2, 2, 3, 2, 0,
+								 0, 2, 2, 0, 0, 0,      // slice 1
+
+								 0, 3, 1, 0, 0, 0,
+								 0, 3, 1, 0, 1, 0,
+								 0, 3, 1, 3, 1, 0,
+								 0, 3, 3, 3, 1, 0,
+								 0, 3, 3, 0, 0, 0,      // slice 1
+
+								 0, 2, 2, 0, 0, 0,
+								 0, 2, 2, 3, 1, 0,
+								 0, 1, 2, 3, 2, 0,
+								 0, 1, 0, 3, 2, 0,
+								 0, 0, 0, 0, 0, 0 } );  // slice 2
+		test_image.reshape ( { 6, 5, 4 } );          // see the shape above */
 
 		/* 2d test 
 		test_image.array_init ( { 3, 3, 1, 4, 2,     // see 10.1109/ICIP.2007.4379949
 								  4, 1, 2, 3, 1 } ); // only 1 slice 
 		test_image.reshape    ( { 5, 2 }          ); // see the shape above */
 		
-        bismaxtree<unsigned short> test_mt ( test_image,                      // image of which to build the maxtree
-											 3,                               // number of levels ( test image: 4 )
-											 6, // type of connectivity (4|8 for 2D, 6|26 for 3D)
-											 "Berger" );                      // method ( "Berger" works, "Wilkinson" will be added)
+        bismaxtree<unsigned short> test_mt ( test_image,                      			// image of which to build the maxtree
+											 4,                               			// number of levels ( test image: 4 )
+											 2 * test_image.getsize().size(), 			// type of connectivity (4|8 for 2D, 6|26 for 3D)
+											 "Berger" );                      			// method ( "Berger" works, "Wilkinson" will be added)
+		std::cout << test_mt 											<< std::endl;	// print the tree
+		std::cout << static_cast<bisimage<unsigned short>> ( test_mt )	<< std::endl;	// print the data
+		
+		std::cout << "getpoints (0):" << std::endl;
+		std::cout << test_mt.getpoints( 0, 0, true ) << std::endl;
+		std::cout << "getpoints (1):" << std::endl;
+		std::cout << test_mt.getpoints( 1 ) << std::endl;
+		std::cout << "getpoints (2):" << std::endl;
+		std::cout << test_mt.getpoints( 2 ) << std::endl;
+		std::cout << "getpoints (3):" << std::endl;
+		std::cout << test_mt.getpoints( 3 ) << std::endl;
+		
+		auto select=test_mt.setpoints (1,2);
+		std::cout << "selected points:" << std::endl << select << std::endl;
+
+		// cd /tmp
+		// cp $FSLDIR/data/standard/MNI152_T1_2mm.nii.gz .
+		// fslmaths MNI152_T1_2mm.nii.gz -subsamp2 minimni
+		// fslmaths minimni.nii.gz -subsamp2 micromni
+		// fslmaths micromni.nii.gz -subsamp2 nanomni
+		// fslmaths nanomni.nii.gz -subsamp2 picomni
+		// std::string test2name = fsldir + "/data/standard/MNI152_T1_2mm_brain.nii.gz"
+		std::string test2name = "/tmp/picomni.nii.gz";
+        std::string test_file2 ( test2name );
+        std::cout << "loading " << test_file2 << " ..." << std::endl;
+        bisnifti<unsigned short> test_image2 ( test_file2, bis::DO_READ_DATA );        
+        bismaxtree<unsigned short> test_mt2 ( 	test_image2,						// image of which to build the maxtree
+												9,								// number of levels ( test image: 4 )
+												2 * test_image2.getsize().size(),	// type of connectivity (4|8 for 2D, 6|26 for 3D)
+												"Berger" );							// method ( "Berger" works, "Wilkinson" will be added)
+
+		std::cout << static_cast<bisimage<unsigned short>> ( test_mt2 )	<< std::endl;	// print the data
+		std::cout << test_mt2 << std::endl;
+		auto select2 = test_mt2.setpoints ( 0, 0 );
+		bisnifti<unsigned short> nifti2 (select2);
+		nifti2.saveNII("/tmp/test.nii.gz");
 
     }
 

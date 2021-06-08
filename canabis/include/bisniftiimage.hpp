@@ -220,13 +220,13 @@ namespace bis {
 
     } // getdatatype
 
-    template <typename T>
+    template <typename value_type>
 
-    class bisnifti : public bisimage<T> {
+    class bisnifti : public bisimage<value_type> {
 
             // self and superclass
-            using self = bisnifti<T>;
-            using superclass = bisimage<T>;
+            using self = bisnifti<value_type>;
+            using superclass = bisimage<value_type>;
 
         protected:
             /** \brief the header should be usable by subclas bisdicom
@@ -268,7 +268,6 @@ namespace bis {
             bisnifti ( std::string filename, bis::readdata readornot = bis::DO_READ_DATA ) {
 
                 header = nifti_image_read ( filename.c_str(), readornot );
-				nifti_image_infodump( header );
 
                 superclass::sizes.resize ( header->dim[0] );
                 superclass::strides.resize ( header->dim[0] + 1 );
@@ -291,7 +290,7 @@ namespace bis {
 
             /** \brief (deep) copy constructor
              *
-             * copies data, sizes and header from an existing bisimage
+             * copies data, sizes and header from an existing bisnifti
              */
             bisnifti ( const bisnifti& rhs ) {
 
@@ -307,12 +306,37 @@ namespace bis {
                 std::copy ( rhs.strides.begin(), rhs.strides.end(), superclass::strides.begin() );
             }
 
+            /** \brief constructor from a bisImage
+             *
+             * copies data and sizes from an existing bisimage, create header
+             */
+            bisnifti ( bisimage<value_type>& rhs ) {
+
+				int64_t 
+					dims [ 8 ] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+				
+                superclass::data.resize ( rhs.getdatasize() );
+                superclass::sizes = rhs.getsize();
+                superclass::validate_sizes();
+                std::copy ( rhs.getdata_ptr()->begin(), rhs.getdata_ptr()->end(), superclass::data.begin() );
+
+                if ( header != NULL )
+                    free ( header );
+					
+				dims [ 0 ] = superclass::sizes.size();	
+				for ( unsigned d = 0; d < dims [ 0 ]; d++ )
+					dims [ d + 1 ] = superclass::sizes [ d ];
+				
+				header = nifti_make_new_nim ( dims, getdatatype<value_type>(), 0 ); // the 0 is for not creating the intensities array
+
+            }
+			
             /** \brief assignment operator
              *
              * assigns data, sizes and header of the
              * right-hand side (RHS) image to (*this)
              */
-            const bisnifti<T>& operator= ( bisnifti<T>& rhs ) {
+            const bisnifti<value_type>& operator= ( bisnifti<value_type>& rhs ) {
 
                 if ( this != &rhs ) {
 

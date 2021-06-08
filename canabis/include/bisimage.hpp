@@ -117,40 +117,6 @@ class bisimage {
   
 
     
-	public:
-
-
-    /** \brief use value_type for pixels
-     *
-     * To be able to use value_type (this name is also
-     * used in STL containers) we make it public first
-     */
-    //typedef
-    //    T value_type;
-
-
-
-    private:
-  
-    /** \brief validate sizes
-     *
-     * After the sizes vector has changed, update the other vectors
-     */   
-    void validate_sizes() {         
-    
-        strides.resize ( sizes.size()+1 );
-
-        strides [ 0 ] = 1;
-        for ( size_t i=1; i<=sizes.size(); i++ ) {
-            strides [i] = strides [ i - 1 ] * sizes [ i - 1 ];
-        }
-
-        data.resize ( *strides.rbegin() );
-        
-    }
-  
-  
-  
 	protected:
   
     /** \brief the header, data, sizes and strides should
@@ -170,6 +136,23 @@ class bisimage {
 
     std::vector <value_type>
     data;
+
+    /** \brief validate sizes
+     *
+     * After the sizes vector has changed, update the other vectors
+     */   
+    void validate_sizes() {         
+    
+        strides.resize ( sizes.size()+1 );
+
+        strides [ 0 ] = 1;
+        for ( size_t i=1; i<=sizes.size(); i++ ) {
+            strides [i] = strides [ i - 1 ] * sizes [ i - 1 ];
+        }
+
+        data.resize ( *strides.rbegin() );
+        
+    }
 
 
 
@@ -424,9 +407,6 @@ class bisimage {
 			pd = 0;
 		bool valid = true;
 			
-		if ( ( (off1 == 10) || (off1 == 11) ) && ( (off2 == 5) || (off2 == 6) ) )
-			std::cout << "off1, off2 = " << off1 << "," << off2;
-			
         for ( long d = sizes.size()-1; d>=0; d-- ) {
 			
             pos1  = off1 / strides[d];
@@ -455,9 +435,6 @@ class bisimage {
 					
 		} // for d
 
-		if ( ( (off1 == 10) || (off1 == 11) ) && ( (off2 == 5) || (off2 == 6) ) )
-			std::cout << valid << std::endl;
-		
         return ( valid );
 
     }
@@ -485,7 +462,48 @@ class bisimage {
      * the size of the vector 'data'
      */
     size_t              getdatasize ( ) {
-        return std::accumulate( sizes.begin(), sizes.end(), 1, std::multiplies<size_t>() );
+        return data.size();
+    }
+
+    /** \brief vector_mask() - sets the data vector to 0 outside where a mask vector is 0
+     *
+	 * The mask vector should be the same size as the data vector
+	 * 
+     */
+	template <typename T>
+    void vector_mask ( std::vector <T> mask ) {
+		
+		if ( mask.size() == data.size() )
+			
+			std::transform ( data.begin(), data.end(), mask.begin(), data.begin(),
+								[] ( auto p1, auto p2 ) { return ( ( ! p2 ) ? 0 : p1 ); } );
+		
+    }
+
+    /** \brief vector_import() - sets the data vector to 0 outside where a mask vector is 0
+     *
+	 * The mask vector should be the same size as the data vector
+	 * 
+     */
+    void vector_import ( std::vector <value_type> input ) {
+		
+		if ( input.size() == data.size() )
+			std::copy ( input.begin(), input.end(), data.begin() );		
+			
+    }
+	
+    /** \brief vector_export() - returns the data vector
+     *
+	 * The mask vector should be the same size as the data vector
+	 * 
+     */
+    std::vector<value_type> vector_export () {
+
+		std::vector<value_type> 
+			output ( data );
+
+		return output;
+		
     }
 
     /** \brief getdata_ptr() - returns the address of the data vector
@@ -495,26 +513,6 @@ class bisimage {
     std::vector <value_type>*          getdata_ptr ( ) {
         return &data;
     }
-
-    /** \brief getdata_array() - returns the address of the 1st data value
-     *
-     * this is a pointer to an array -- use with care
-     */
-    value_type*                        getdata_array ( ) {
-        return data.data();
-    }
-
-    /** \brief setdata_array() - copy the contents of a flat C-style array to the data vector
-     *
-     * this is a pointer to an array -- use with care
-     * (number of elements copied: size of data vector)
-     */
-    void setdata_array ( value_type* newdata ) {
-        for ( size_t i = 0; i < data.size(); i++ )
-            data[i] = newdata[i];
-    }
-
-
 
     /** \brief reshape() - change dimensions
      *
@@ -708,7 +706,7 @@ class bisimage {
     
 
 /** Functions outside of the bisimage class.
- *  Thes can be used by bisimage objects, but
+ *  These can be used by bisimage objects, but
  *  are not required by the class and do not
  *  require it themselves.
  *
@@ -1393,8 +1391,8 @@ bool GetWatershedImage() {
         return false;
     }
 
-    value_type max_value=*std::max_element(data.begin(),data.end());
-    value_type min_value=*std::min_element(data.begin(),data.end());
+    value_type max_value = *std::max_element(data.begin(),data.end());
+    value_type min_value = *std::min_element(data.begin(),data.end());
     size_t ndim=sizes.size();
     size_t NP=getdatasize();
 
