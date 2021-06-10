@@ -202,30 +202,12 @@ int main()
         bisimage<unsigned short> test_image;  
       
 		/* 3d test */
-		test_image.array_init( { 0, 1, 0, 0, 0, 0,
-								 0, 1, 1, 0, 0, 0,
-								 0, 1, 2, 3, 0, 0,
-								 0, 1, 2, 3, 1, 0,
-								 0, 1, 2, 0, 0, 0,      // slice 1
+		test_image.array_init( { 2, 2, 1, 2, 3,
+                                 2, 2, 1, 2, 2, 
 								 
-								 0, 2, 1, 0, 0, 0,
-								 0, 2, 1, 3, 2, 0,
-								 0, 2, 1, 3, 2, 0,
-								 0, 2, 2, 3, 2, 0,
-								 0, 2, 2, 0, 0, 0,      // slice 1
-
-								 0, 3, 1, 0, 0, 0,
-								 0, 3, 1, 0, 1, 0,
-								 0, 3, 1, 3, 1, 0,
-								 0, 3, 3, 3, 1, 0,
-								 0, 3, 3, 0, 0, 0,      // slice 1
-
-								 0, 2, 2, 0, 0, 0,
-								 0, 2, 2, 3, 1, 0,
-								 0, 1, 2, 3, 2, 0,
-								 0, 1, 0, 3, 2, 0,
-								 0, 0, 0, 0, 0, 0 } );  // slice 2
-		test_image.reshape ( { 6, 5, 4 } );          // see the shape above */
+								 3, 2, 1, 2, 2, 
+								 2, 2, 1, 2, 2  } );  // slice 2
+		test_image.reshape ( { 5, 2, 2 } );          // see the shape above */
 
 		/* 2d test 
 		test_image.array_init ( { 3, 3, 1, 4, 2,     // see 10.1109/ICIP.2007.4379949
@@ -257,20 +239,21 @@ int main()
 		// fslmaths minimni.nii.gz -subsamp2 micromni
 		// fslmaths micromni.nii.gz -subsamp2 nanomni
 		// fslmaths nanomni.nii.gz -subsamp2 picomni
+		// fslmaths picomni -subsamp2 femtomni
 		// std::string test2name = fsldir + "/data/standard/MNI152_T1_2mm_brain.nii.gz"
-		std::string test2name = "/tmp/picomni.nii.gz";
+		std::string test2name = "/tmp/MNI152_T1_2mm.nii.gz";
         std::string test_file2 ( test2name );
         std::cout << "loading " << test_file2 << " ..." << std::endl;
         bisnifti<unsigned short> test_image2 ( test_file2, bis::DO_READ_DATA );        
         bismaxtree<unsigned short> test_mt2 ( 	test_image2,						// image of which to build the maxtree
-												9,								// number of levels ( test image: 4 )
+												8,									// number of levels ( test image: 4 )
 												2 * test_image2.getsize().size(),	// type of connectivity (4|8 for 2D, 6|26 for 3D)
-												"Berger" );							// method ( "Berger" works, "Wilkinson" will be added)
+												"Berger" );							// method ( "Berger" works, hopefully will add others)
 
 		std::cout << static_cast<bisimage<unsigned short>> ( test_mt2 )	<< std::endl;	// print the data
 		std::cout << test_mt2 << std::endl;
-		auto select2 = test_mt2.setpoints ( 0, 0 );
-		bisnifti<unsigned short> nifti2 (select2);
+		auto select2 = test_mt2.setpoints ( 1, 0 );
+		bisnifti<unsigned short> nifti2 (select2);		
 		nifti2.saveNII("/tmp/test.nii.gz");
 
     }

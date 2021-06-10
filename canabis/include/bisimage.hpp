@@ -465,6 +465,20 @@ class bisimage {
         return data.size();
     }
 
+    /** \brief vector_set() - sets the data vector
+     *
+	 * The input vector should be the same size as the data vector
+	 * 
+     */
+	template <typename T>
+    void vector_set ( std::vector <T> newdata ) {
+		
+		if ( newdata.size() == data.size() )
+			
+			std::copy ( newdata.begin(), newdata.end(), data.begin() );		
+			
+    }
+
     /** \brief vector_mask() - sets the data vector to 0 outside where a mask vector is 0
      *
 	 * The mask vector should be the same size as the data vector

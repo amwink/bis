@@ -129,23 +129,9 @@ public:
 			break;
 		}
 
-		////////////////////////////////////////////////////////////////////////////////
-		//
-		// sort sorted intensities in the data vector "sorted"
-		// and also keep an array "indices" to see where they were in the image
-		//
-
-		std::vector<size_t> indices ( data.size() );
-
-		std::iota ( indices.begin(), indices.end(), 0 );      // fill with 0, 1, 2, ..
-		//if ( method == "Berger" )                           // to label last index as
-		//   std::reverse ( indices.begin(), indices.end() ); // root (ICIP 2007 paper)
-		std::stable_sort ( indices.begin(), indices.end(),    // 'data' sorted for determining 'indices'
-						   [&] ( size_t i, size_t j ) { return ( data[i] < data[j] ); } );
-
 		auto 
-			mn = data[indices.front()], 
-			mx = data[indices.back()];
+			mn = *std::min_element ( data.begin(), data.end() ), 
+			mx = *std::max_element ( data.begin(), data.end() );
 
 		////////////////////////////////////////////////////////////////////////////////
 		//
@@ -179,6 +165,18 @@ public:
 			} );
 		}
 
+		////////////////////////////////////////////////////////////////////////////////
+		//
+		// sort sorted intensities in the data vector "sorted"
+		// and also keep an array "indices" to see where they were in the image
+		//
+
+		std::vector<size_t> indices ( data.size() );
+
+		std::iota ( indices.begin(), indices.end(), 0 );      // fill with 0, 1, 2, ..
+		std::stable_sort ( indices.begin(), indices.end(),    // 'data' sorted for determining 'indices'
+						   [&] ( size_t i, size_t j ) { return ( quant[i] < quant[j] ); } );
+
 		// the parent vector
 		std::vector<size_t> parent ( quant.size(), undefined );
 
@@ -191,19 +189,22 @@ public:
 
 		if ( method == "Berger" ) {
 
-			std::vector<size_t>	zpar ( quant.size(), undefined );
-			std::vector<size_t>	root ( quant.size(),		 0 );
-			std::vector<size_t>	rank ( quant.size(),		 0 );
+			std::vector<size_t>	zpar  ( quant.size(), undefined );
+			std::vector<size_t>	root  ( quant.size(),		  0 );
+			std::vector<size_t>	rank  ( quant.size(),		  0 );
+			std::vector<bool> visited ( quant.size(),	  false );
 
 			// std::string letters = "CDHAFBIGEJ"; // from Berger's 2007 ICIP paper
 			for ( size_t i = 0; i < indices.size(); i++ ) { 
 
 				size_t 
 					p     = indices[ indices.size() - i -1 ]; // point at index, step from top - bottom
-				parent[p] = p;          // pixel at this (higher level) starts as parent
-				zpar  [p] = p;          //							as union-find parent
-				root  [p] = p;
-
+								
+				parent	[ p ] = p;          // pixel at this (higher level) starts as parent
+				zpar	[ p ] = p;          //							as union-find parent
+				root	[ p ] = p;
+				visited	[ p ] = true;
+								
 				auto x    = p;          // keep this as zpar
 
 				// this is valid for Bergers 2007 ICIP example
@@ -217,7 +218,7 @@ public:
 					     ( ( static_cast<size_t> ( n ) ) < indices.size() ) && 
 						 this->valid_neighbours ( n, p, 1 ) ) {
 
-						if ( zpar[n] !=undefined ) {					// if n has been visited it has a zpar
+						if ( visited [ n ] ) {					// if n has been visited it has a zpar
 
 							// this is valid for Bergers 2007 ICIP example
 							// std::cout << "looking at neighbour " << n << " (" << letters[n] << ")";
@@ -296,7 +297,7 @@ public:
 				if ( ! 	components [ c ].size ) {
 						components [ c ].root   = p;
 						components [ c ].value  = quant                    [ p ];
-						components [ c ].parent = cdata  [ parent [ parent [ p ] ] ];			
+						components [ c ].parent = cdata  [ parent [ root [ p ] ] ];			
 				}
 				components [ c ].size++;
 				components [ c ].points.push_back ( p );
@@ -315,10 +316,8 @@ public:
 			for ( size_t c = 0; c < components.size(); c++ ) 
 				std::reverse ( components [ c ].children.begin(), components [ c ].children.end() );
 
-			//std::copy ( quant.begin(), quant.end(), data.begin() );
-			//std::copy ( parent.begin(), parent.end(), data.begin() );
-			std::copy ( parent.begin(), parent.end(), data.begin() );
-
+			std::copy ( cdata.begin(), cdata.end(), data.begin() );
+			std::cout << cdata << std::endl;
 			
 		} // if Berger method used
 
@@ -378,7 +377,7 @@ public:
 		
 		for ( auto p: mypoints )
 			found [ p ] = 1;
-		output.vector_mask ( found );
+		output.vector_set ( found );
 
 		return ( output );
 		

@@ -327,7 +327,8 @@ namespace bis {
 				for ( unsigned d = 0; d < dims [ 0 ]; d++ )
 					dims [ d + 1 ] = superclass::sizes [ d ];
 				
-				header = nifti_make_new_nim ( dims, getdatatype<value_type>(), 0 ); // the 0 is for not creating the intensities array
+				header  = nifti_make_new_nim ( dims, getdatatype<value_type>(), 0 ); // the 0 is for not creating the intensities array
+				header -> data = superclass::getdata_ptr();
 
             }
 			
