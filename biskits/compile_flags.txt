@@ -3,11 +3,11 @@
 -I/usr/include/c++/9/backward
 -I/usr/lib/gcc/x86_64-linux-gnu/9/include
 -I/usr/local/include
+-I/usr/lib/gcc/x86_64-linux-gnu/9/include-fixed
 -I/usr/include/x86_64-linux-gnu
 -I/usr/include
 -I/home/amwink/software/cpp/bis/biskits
--I/usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.0
+-I/usr/lib/x86_64-linux-gnu/wx/include/base-unicode-3.0
 -I/usr/include/wx-3.0
--D__WXGTK__
 -DWXUSINGDLL
 -D_FILE_OFFSET_BITS=64

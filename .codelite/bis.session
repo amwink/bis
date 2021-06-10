@@ -5,22 +5,22 @@
   <TabInfoArray Name="TabInfoArray">
     <TabInfo>
       <wxString Value="/home/amwink/software/cpp/bis/probis/src/probis.cpp" Name="FileName"/>
-      <int Value="231" Name="FirstVisibleLine"/>
+      <int Value="237" Name="FirstVisibleLine"/>
       <int Value="254" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>
     <TabInfo>
       <wxString Value="/home/amwink/software/cpp/bis/canabis/include/bismaxtree.hpp" Name="FileName"/>
-      <int Value="356" Name="FirstVisibleLine"/>
-      <int Value="379" Name="CurrentLine"/>
+      <int Value="316" Name="FirstVisibleLine"/>
+      <int Value="319" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>
     <TabInfo>
       <wxString Value="/home/amwink/software/cpp/bis/canabis/include/bisimage.hpp" Name="FileName"/>
-      <int Value="459" Name="FirstVisibleLine"/>
-      <int Value="481" Name="CurrentLine"/>
+      <int Value="514" Name="FirstVisibleLine"/>
+      <int Value="515" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>

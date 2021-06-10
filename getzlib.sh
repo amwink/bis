@@ -16,8 +16,8 @@ perl -i -wpe 's/-O2/-Ofast -march=native -fPIC/' `find . -name Makefile\*`
 bash configure
 make
 cd ..
-mkdir -p ../../../bin
-mkdir -p ../../../lib
-cp z/libz.so* ../../../bin/
-cp z/libz.a* ../../../bin/
-cp z/libz.dll* ../../../lib/
+#mkdir -p ../../../bin
+#mkdir -p ../../../lib
+#cp z/libz.so* ../../../bin/
+#cp z/libz.a* ../../../bin/
+#cp z/libz.dll* ../../../lib/

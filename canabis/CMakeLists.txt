@@ -2,27 +2,8 @@
 
 cmake_minimum_required(VERSION 2.8.11)
 
-# Project name
 project(canabis)
 
-# This setting is useful for providing JSON file used by CodeLite for code completion
-set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
-
-set(CONFIGURATION_NAME "Debug")
-
-set(CL_WORKSPACE_DIRECTORY ..)
-# Set default locations
-set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/${CL_WORKSPACE_DIRECTORY}/cmake-build-${CONFIGURATION_NAME}/output)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
-
-# Projects
-
-
-# Top project
-## Add the dependencies
-add_subdirectory(${CMAKE_SOURCE_DIR}/../nifti ${CMAKE_CURRENT_BINARY_DIR}/nifti-build)
 # Define some variables
 set(PROJECT_canabis_PATH "${CMAKE_CURRENT_LIST_DIR}")
 set(WORKSPACE_PATH "${CMAKE_CURRENT_LIST_DIR}/..")
@@ -95,9 +76,6 @@ endif(WIN32)
 add_library(canabis SHARED ${RC_SRCS} ${CXX_SRCS} ${C_SRCS})
 target_link_libraries(canabis ${LINK_OPTIONS})
 
-
-# Adding dependencies
-add_dependencies(canabis nifti)
 
 
 #{{{{ User Code 3

@@ -5,12 +5,12 @@
     <Include Path="/usr/include"/>
     <Include Path="/usr/local/include"/>
   </WorkspaceParserPaths>
-  <Project Name="z" Path="z/z.project" Active="No"/>
   <Project Name="znz" Path="znz/znz.project" Active="No"/>
   <Project Name="nifti" Path="nifti/nifti.project" Active="No"/>
   <Project Name="canabis" Path="canabis/canabis.project" Active="No"/>
   <Project Name="probis" Path="probis/probis.project" Active="Yes"/>
   <Project Name="biskits" Path="biskits/biskits.project" Active="No"/>
+  <Project Name="z" Path="z/z.project" Active="No"/>
   <BuildMatrix>
     <WorkspaceConfiguration Name="Debug" Selected="yes">
       <Environment/>
@@ -20,6 +20,7 @@
       <Project Name="canabis" ConfigName="Debug"/>
       <Project Name="probis" ConfigName="Debug"/>
       <Project Name="biskits" ConfigName="Debug"/>
+      <Project Name="z" ConfigName="Debug"/>
     </WorkspaceConfiguration>
     <WorkspaceConfiguration Name="Release" Selected="yes">
       <Environment/>
@@ -29,6 +30,7 @@
       <Project Name="canabis" ConfigName="Release"/>
       <Project Name="probis" ConfigName="Release"/>
       <Project Name="biskits" ConfigName="Release"/>
+      <Project Name="z" ConfigName="Release"/>
     </WorkspaceConfiguration>
   </BuildMatrix>
 </CodeLite_Workspace>

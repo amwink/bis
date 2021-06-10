@@ -246,15 +246,17 @@ int main()
         std::cout << "loading " << test_file2 << " ..." << std::endl;
         bisnifti<unsigned short> test_image2 ( test_file2, bis::DO_READ_DATA );        
         bismaxtree<unsigned short> test_mt2 ( 	test_image2,						// image of which to build the maxtree
-												8,									// number of levels ( test image: 4 )
+												3,									// number of levels ( test image: 4 )
 												2 * test_image2.getsize().size(),	// type of connectivity (4|8 for 2D, 6|26 for 3D)
 												"Berger" );							// method ( "Berger" works, hopefully will add others)
 
-		std::cout << static_cast<bisimage<unsigned short>> ( test_mt2 )	<< std::endl;	// print the data
-		std::cout << test_mt2 << std::endl;
-		auto select2 = test_mt2.setpoints ( 1, 0 );
-		bisnifti<unsigned short> nifti2 (select2);		
+		auto select2 = test_mt2.setpoints ( 240, 0 );
+		bisnifti<unsigned short> nifti2 ( select2 );		
 		nifti2.saveNII("/tmp/test.nii.gz");
+
+		bisimage<unsigned short> labels2 ( test_mt2 );
+		bisnifti<unsigned short> mt_map2 ( labels2 );		
+		mt_map2.saveNII("/tmp/mt.nii.gz");		
 
     }
 
