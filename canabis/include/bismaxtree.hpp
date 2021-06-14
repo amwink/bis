@@ -345,21 +345,23 @@ public:
 		
 		std::vector<size_t> 
 			mypoints;
-		auto chigh = ( ! comp_end ) ? components.size() : comp_end;
+		auto 
+			chigh = ( ! comp_end ) ? components.size() : comp_end;
 			
 		mypoints.insert ( mypoints.end(), components [ comp_start ].points.begin(), components [ comp_start ].points.end() );
-		for ( auto c: components [ comp_start ].children ) {
-			// if ( c <= chigh ) {
+		for ( auto c: components [ comp_start ].children )
+			if ( c <= chigh ) {
 				auto vec = getpoints( c, chigh, sorted );
 				mypoints.insert ( mypoints.end(), vec.begin(), vec.end() );
 			}
+			
 		
 		if (sorted)
 			std::sort( mypoints.begin(), mypoints.end() );
 		
 		return ( mypoints );
 		
-	} // assignment
+	} // getpoints
 
 	/** \brief return a bisimage with the intensities of selected components
 	 *
@@ -370,7 +372,7 @@ public:
 		
 		std::vector<size_t> 
 			mypoints = getpoints ( comp_start, comp_end, true );
-		std::vector<char> 
+		std::vector<unsigned short> 
 			found ( superclass::data.size(), 0 );
 		bisimage<value_type>
 			output = (*this);

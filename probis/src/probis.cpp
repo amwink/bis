@@ -246,7 +246,7 @@ int main()
         std::cout << "loading " << test_file2 << " ..." << std::endl;
         bisnifti<unsigned short> test_image2 ( test_file2, bis::DO_READ_DATA );        
         bismaxtree<unsigned short> test_mt2 ( 	test_image2,						// image of which to build the maxtree
-												3,									// number of levels ( test image: 4 )
+												8,									// number of levels ( test image: 4 )
 												2 * test_image2.getsize().size(),	// type of connectivity (4|8 for 2D, 6|26 for 3D)
 												"Berger" );							// method ( "Berger" works, hopefully will add others)
 
