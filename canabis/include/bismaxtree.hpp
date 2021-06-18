@@ -317,7 +317,7 @@ public:
 				std::reverse ( components [ c ].children.begin(), components [ c ].children.end() );
 
 			std::copy ( cdata.begin(), cdata.end(), data.begin() );
-			std::cout << cdata << std::endl;
+			// std::cout << cdata << std::endl;
 			
 		} // if Berger method used
 
@@ -389,7 +389,7 @@ public:
 	* make std::cout so that it summarises the tree
 	* 
 	*/
-	friend std::ostream& operator<< ( std::ostream& sout, const bismaxtree& output) {
+	friend std::ostream& operator<< ( std::ostream& sout, const bismaxtree& output ) {
 		
 		for ( size_t c = 0; c < output.components.size(); c++ ) {
 			
@@ -400,9 +400,8 @@ public:
 					<<  ", value: "    << std::setfill ( ' ' ) << std::setw ( 3 ) << output.components[c].value   
 					<<  ", parent: "   << std::setfill ( ' ' ) << std::setw ( 3 ) << output.components[c].parent
 					<<  ", children: " << std::setfill ( ' ' ) << std::setw ( 3 ) << output.components[c].children << " }" 
-					<< std::endl;
-					
-			sout	<< "points: " << output.components [ c ].points << std::endl;
+					<< std::endl;			
+			// sout	<< "points: " << output.components [ c ].points << std::endl;
 			
 		}
 

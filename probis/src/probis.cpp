@@ -1,6 +1,6 @@
 #include "bisdicomimage.hpp"
 #include "bismaxtree.hpp"
-// #include <cstdlib>
+#include <cstdlib>
 
 using namespace bis;
 
@@ -199,64 +199,29 @@ int main()
         // Test maxtree -- for doing mathematical morphology
         //
 
-        bisimage<unsigned short> test_image;  
-      
-		/* 3d test */
-		test_image.array_init( { 2, 2, 1, 2, 3,
-                                 2, 2, 1, 2, 2, 
-								 
-								 3, 2, 1, 2, 2, 
-								 2, 2, 1, 2, 2  } );  // slice 2
-		test_image.reshape ( { 5, 2, 2 } );          // see the shape above */
+		std::string mri_name ( fsldir + "/data/standard/MNI152_T1_2mm.nii.gz" );
+        std::cout << "loading " << mri_name << " ..." << std::endl;
+        bisnifti<unsigned short> 
+			mri_data ( mri_name, bis::DO_READ_DATA );						// load as nifti image
+        std::cout << "building maxtree ..." << std::endl;
+        bismaxtree<unsigned short> mri_mt (	mri_data,						// image of which to build the maxtree
+											8,								// number of levels ( test image: 4 )
+											2 * mri_data.getsize().size(),	// type of connectivity (4|8 for 2D, 6|26 for 3D)
+											"Berger" );						// method ( "Berger" works, hopefully will add others)
 
-		/* 2d test 
-		test_image.array_init ( { 3, 3, 1, 4, 2,     // see 10.1109/ICIP.2007.4379949
-								  4, 1, 2, 3, 1 } ); // only 1 slice 
-		test_image.reshape    ( { 5, 2 }          ); // see the shape above */
-		
-        bismaxtree<unsigned short> test_mt ( test_image,                      			// image of which to build the maxtree
-											 4,                               			// number of levels ( test image: 4 )
-											 2 * test_image.getsize().size(), 			// type of connectivity (4|8 for 2D, 6|26 for 3D)
-											 "Berger" );                      			// method ( "Berger" works, "Wilkinson" will be added)
-		std::cout << test_mt 											<< std::endl;	// print the tree
-		std::cout << static_cast<bisimage<unsigned short>> ( test_mt )	<< std::endl;	// print the data
-		
-		std::cout << "getpoints (0):" << std::endl;
-		std::cout << test_mt.getpoints( 0, 0, true ) << std::endl;
-		std::cout << "getpoints (1):" << std::endl;
-		std::cout << test_mt.getpoints( 1 ) << std::endl;
-		std::cout << "getpoints (2):" << std::endl;
-		std::cout << test_mt.getpoints( 2 ) << std::endl;
-		std::cout << "getpoints (3):" << std::endl;
-		std::cout << test_mt.getpoints( 3 ) << std::endl;
-		
-		auto select=test_mt.setpoints (1,2);
-		std::cout << "selected points:" << std::endl << select << std::endl;
+		bisimage < unsigned short >
+			mri_labels ( mri_mt );											// first cast maxtree to bisnifti: labels -> voxels
+		bisnifti < unsigned short > 
+			nifti_labels ( mri_labels );									// then cast bisimage to bisnifti (minimal header info!)
+		nifti_labels.saveNII ( "/tmp/mri_mt.nii.gz" );
 
-		// cd /tmp
-		// cp $FSLDIR/data/standard/MNI152_T1_2mm.nii.gz .
-		// fslmaths MNI152_T1_2mm.nii.gz -subsamp2 minimni
-		// fslmaths minimni.nii.gz -subsamp2 micromni
-		// fslmaths micromni.nii.gz -subsamp2 nanomni
-		// fslmaths nanomni.nii.gz -subsamp2 picomni
-		// fslmaths picomni -subsamp2 femtomni
-		// std::string test2name = fsldir + "/data/standard/MNI152_T1_2mm_brain.nii.gz"
-		std::string test2name = "/tmp/MNI152_T1_2mm.nii.gz";
-        std::string test_file2 ( test2name );
-        std::cout << "loading " << test_file2 << " ..." << std::endl;
-        bisnifti<unsigned short> test_image2 ( test_file2, bis::DO_READ_DATA );        
-        bismaxtree<unsigned short> test_mt2 ( 	test_image2,						// image of which to build the maxtree
-												8,									// number of levels ( test image: 4 )
-												2 * test_image2.getsize().size(),	// type of connectivity (4|8 for 2D, 6|26 for 3D)
-												"Berger" );							// method ( "Berger" works, hopefully will add others)
-
-		auto select2 = test_mt2.setpoints ( 240, 0 );
-		bisnifti<unsigned short> nifti2 ( select2 );		
-		nifti2.saveNII("/tmp/test.nii.gz");
-
-		bisimage<unsigned short> labels2 ( test_mt2 );
-		bisnifti<unsigned short> mt_map2 ( labels2 );		
-		mt_map2.saveNII("/tmp/mt.nii.gz");		
+		auto cnum = 240;
+        std::cout << "writing mask of component " << cnum << " and kids ..." << std::endl;
+		auto 
+			mri_set = mri_mt.setpoints ( cnum, 0 );							// auto: output type setpoints() fixed
+		bisnifti < unsigned short >											// not auto: cast bisimage to bisnifti
+			nifti_set ( mri_set );		
+		nifti_set.saveNII ( "/tmp/mri_mask.nii.gz" );
 
     }
 

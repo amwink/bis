@@ -220,6 +220,30 @@ namespace bis {
 
     } // getdatatype
 
+    /** \brief bis::getenv() -- 
+     *
+     *  template parameters:
+     *  BufElem:    the element type of the input buffer (e.g., float)
+     *  Data:       the target container (e.g., a vector<double>)
+     *
+     *  function parameters:
+     *  nifti_image:    a nifti_image record with a pointer to an output data buffer
+     *  data:           pointer to the start of the target container's buffer
+     *
+     */
+	std::string getenv( const std::string & var ) {
+		
+		const char * val = std::getenv( var.c_str() );
+		
+		if ( val == nullptr )	// invalid to assign nullptr to std::string
+			return "";
+		else
+			return val;
+			
+	} // getenv
+
+
+
     template <typename value_type>
 
     class bisnifti : public bisimage<value_type> {
@@ -404,7 +428,7 @@ namespace bis {
                     nifti_set_filenames ( header, filename.c_str(), 0, 0 );
                     setNiftiBricks ( header, & ( superclass::data ) );
 
-                    auto checkit = true;
+                    auto checkit = false;
                     if ( checkit ) {
                         std::cout << "data size: " << superclass::data.size() << std::endl;
                         std::cout << "sizes:     " << superclass::sizes << std::endl;
@@ -417,7 +441,7 @@ namespace bis {
                         //        std::cout << ", nii value " << * ( unsigned short* ) ( pp ) << std::endl;
                         //    }
                         //}
-                        infodump();
+                        // infodump();
                         auto checkit3 = false;
                         if ( checkit3 )
                             std::cin.ignore();
