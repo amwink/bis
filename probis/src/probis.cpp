@@ -199,6 +199,8 @@ int main()
         // Test maxtree -- for doing mathematical morphology
         //
 
+		std::cout << "FSL directory: " << bis::getenv( "FSLDIR" ) << std::endl;
+
 		std::string mri_name ( fsldir + "/data/standard/MNI152_T1_2mm.nii.gz" );
         std::cout << "loading " << mri_name << " ..." << std::endl;
         bisnifti<unsigned short> 
@@ -214,6 +216,8 @@ int main()
 		bisnifti < unsigned short > 
 			nifti_labels ( mri_labels );									// then cast bisimage to bisnifti (minimal header info!)
 		nifti_labels.saveNII ( "/tmp/mri_mt.nii.gz" );
+
+		mri_mt.getattr ( "mass" );
 
 		auto cnum = 240;
         std::cout << "writing mask of component " << cnum << " and kids ..." << std::endl;

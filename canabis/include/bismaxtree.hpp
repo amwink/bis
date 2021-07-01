@@ -13,8 +13,7 @@
 /** \brief more goodies from the standard library
  *
  */
-#include <queue>
-#include <stack>
+#include <map>
 #include <type_traits>
 
 /** \brief bis: namespace for multidimensional images
@@ -24,7 +23,50 @@
  */
 namespace bis {
 
+
+	
+/* This enum is for choosing attributes later: strings 
+ * don't work in a switch statements but strings that 
+ * are mapped to enums do, see:
+ * 
+ * 	https://www.codeguru.com/cpp/cpp/cpp_mfc/article.php/c4067/Switch-on-Strings-in-C.htm
+ * 
+ */
+	
+enum 
+	stringvalue {
+		evnotdefined,
+		evsize,
+		evmass,
+		evend 
+	};
+	
+/* This static is for choosing attributes later: strings
+ * don't work in a switch statements but strings that are 
+ * mapped to enums do, see:
+ * 
+ * 	https://www.codeguru.com/cpp/cpp/cpp_mfc/article.php/c4067/Switch-on-Strings-in-C.htm
+ * 
+ */
+
+static std::map < std::string, stringvalue > 
+	mapstringvalues = {
+		{ "size", evsize },
+		{ "mass", evmass }
+	};
+
+
+
+/* Maxtree class
+ * 
+ * It inherits from bisimage to build a tree directly from its 
+ * own points and to simplify returning maps etc as images.
+ * 
+ */
+
 template <typename value_type> class bismaxtree : public bisimage<value_type> {
+
+
 
 	// self and superclass
 	using self       = bismaxtree<value_type>;
@@ -34,15 +76,19 @@ template <typename value_type> class bismaxtree : public bisimage<value_type> {
 	using superclass::sizes;
 	using superclass::strides;
 
+
+
 	typedef int level_t;
+
 	typedef struct component {
-		level_t		value;  			// quantised value
-		size_t 		uniq;				// number of points with exactly this value
-		size_t		size;    			// number of points with at most this value
-		size_t		root;    			// offset of 1st point		
-		size_t		parent;				// parent component number
-		std::vector <size_t> children;	// components on top of this
-		std::vector <size_t> points;	// 1D points (only unique - with own value)
+		level_t		value;  										// quantised value
+		size_t 		uniq;											// number of points with exactly this value
+		size_t		size;    										// number of points with at most this value
+		size_t		root;    										// offset of 1st point		
+		size_t		parent;											// parent component number
+		std::vector <size_t> children;								// components on top of (*this)
+		std::vector <size_t> points;								// 1D points (only unique - not children)
+		std::map <std::string, std::vector<double_t>> attributes;	// add any number of attributes
 	} component;
 	
 protected:
@@ -93,7 +139,9 @@ public:
 		//
 		// offsets in the image for connectivities
 		// assuming strides in 2d / 3d images
-		//			 6: only horizontal, vertical or sideways neighbours
+		//	2D		 4: only horizontal and vertical neighbours
+		//			 8: horizontal, vertical and diagonal neighbours
+		//	3D		 6: only horizontal, vertical or sideways neighbours
 		//			26: all horizontal, vertical sideways and combinations
 		//
 
@@ -276,7 +324,6 @@ public:
 			//
 			// identify components ( ≥1 per level )
 			//
-			
 			level_t
 				ccount  = 0;
 			cdata [ indices [ 0 ] ] = 0;
@@ -315,9 +362,6 @@ public:
 			}
 			for ( size_t c = 0; c < components.size(); c++ ) 
 				std::reverse ( components [ c ].children.begin(), components [ c ].children.end() );
-
-			std::copy ( cdata.begin(), cdata.end(), data.begin() );
-			// std::cout << cdata << std::endl;
 			
 		} // if Berger method used
 
@@ -385,6 +429,53 @@ public:
 		
 	} // assignment
 
+	/** \brief get a component's attribute
+	 *
+	 * Inserts an attribute in each component's attribute list
+	 * 	- similarly to getpoints() -- higher components pass down their points -- but:
+	 * 	- return vector is emptied for component 0 (if called for entire tree)
+	 *  - accumulated points are used for attibute computation
+	 * 
+	 */
+	const std::vector<size_t> getattr ( std::string attribute, 
+										size_t comp_start = 0, 
+										size_t comp_end	  = 0 ) {
+		
+		std::vector<size_t> 
+			mypoints;
+		auto 
+			cend = ( ! comp_end ) ? components.size() : comp_end;
+		
+		// first gather all the points belonging to the component
+		mypoints.insert ( mypoints.end(), components [ comp_start ].points.begin(), components [ comp_start ].points.end() );
+		for ( auto c: components [ comp_start ].children ) 			
+			if ( c <= cend ) {
+				auto vec = getattr ( attribute, c );
+				mypoints.insert ( mypoints.end(), vec.begin(), vec.end() );
+			}
+			
+		// then compute attribute (vector of double_t) based on points
+		switch ( mapstringvalues [ attribute ] ) {
+			case evsize: // give each component its size attribute ( # points )
+				components [ comp_start ].attributes [ "size" ] = { components [ comp_start ].size };
+			break;
+			case evmass: // give the sum of all image values at the locations in mypoints
+				components [ comp_start ].attributes [ "mass" ] = {
+					std::accumulate ( mypoints.begin(), mypoints.end(), 0.,
+						[ & ] ( double_t a, size_t b ) { return a + data [ b ]; } )					
+				};
+			break;
+			default:
+				std::cout << "Unknown attribute: " << attribute << std::endl;
+		}
+		
+		if ( ! comp_start )	// just to tidy up really, the points were for communicating between parents / children
+			mypoints.resize ( 0 );
+			
+		return ( mypoints );
+		
+	} // getpoints
+
 	/*
 	* make std::cout so that it summarises the tree
 	* 
@@ -407,8 +498,12 @@ public:
 
 		return ( sout );
 		
-	}
+	} // friend std::ostream
 
+	/*
+	* augment the maxtree by adding an attribute to every component
+	* 
+	*/
 
 
 }; // class bismaxtree
