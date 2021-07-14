@@ -27,7 +27,7 @@ int main()
         do_4d    = false,  // test 3D vectors & matrices ( only tested if do_3d )    
         do_nifti = false,   // test nifti file interactions
         do_dicom = false,  // test nifti file interactions
-        do_reduce = false, // test dimensionality reducer 
+        do_reduce = true, // test dimensionality reducer 
 		do_maxtree = true; // test maxtree
 
     ////////////////////////////////////////
@@ -147,7 +147,7 @@ int main()
         std::string test_file ( fsldir + "/data/standard/MNI152_T1_2mm_brain.nii.gz" );
         std::cout << "loading " << test_file << " ..." << std::endl;
         bisnifti<float> test_image ( test_file, bis::DO_READ_DATA );        
-        test_image.saveNII( dcmdir + "/MNI152_T1_2mm_brain.nii.gz" );   
+        test_image.writenii( dcmdir + "/MNI152_T1_2mm_brain.nii.gz" );   
     
     }
       
@@ -164,7 +164,7 @@ int main()
         std::string test_file2 ( dcmdir + "/EPAD_040-00003_Screening_002159.dcm" );
         bis::bisdicom<unsigned short> test_image2 ( test_file2 );
         std::cerr << "file successfully read\n";
-        test_image2.saveNII( dcmdir + "/EPAD_040-00003_Screening_002159.nii.gz" );   
+        test_image2.writenii( dcmdir + "/EPAD_040-00003_Screening_002159.nii.gz" );   
 
     }
     
@@ -187,6 +187,12 @@ int main()
             auto sum_image = image4d.sum(dim);
             std::cout << sum_image << std::endl;
         }
+		std::string mri_name ( fsldir + "/data/standard/MNI152_T1_2mm.nii.gz" );
+        std::cout << "loading " << mri_name << " ..." << std::endl;
+        bisnifti<unsigned short> 
+			mri_data ( mri_name, bis::DO_READ_DATA );
+		mri_data = mri_data.mean( 2 );
+		mri_data.writenii ( "/tmp/2dmean.nii.gz" );
     }
 
 
@@ -215,7 +221,7 @@ int main()
 			mri_labels ( mri_mt );											// first cast maxtree to bisnifti: labels -> voxels
 		bisnifti < unsigned short > 
 			nifti_labels ( mri_labels );									// then cast bisimage to bisnifti (minimal header info!)
-		nifti_labels.saveNII ( "/tmp/mri_mt.nii.gz" );
+		nifti_labels.writenii ( "/tmp/mri_mt.nii.gz" );
 
 		mri_mt.getattr ( "mass" );
 
@@ -225,7 +231,7 @@ int main()
 			mri_set = mri_mt.setpoints ( cnum, 0 );							// auto: output type setpoints() fixed
 		bisnifti < unsigned short >											// not auto: cast bisimage to bisnifti
 			nifti_set ( mri_set );		
-		nifti_set.saveNII ( "/tmp/mri_mask.nii.gz" );
+		nifti_set.writenii ( "/tmp/mri_mask.nii.gz" );
 
     }
 

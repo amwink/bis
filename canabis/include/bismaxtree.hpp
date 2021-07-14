@@ -83,7 +83,7 @@ template <typename value_type> class bismaxtree : public bisimage<value_type> {
 	typedef struct component {
 		level_t		value;  										// quantised value
 		size_t 		uniq;											// number of points with exactly this value
-		size_t		size;    										// number of points with at most this value
+		size_t		size;    										// number of points with at least this value
 		size_t		root;    										// offset of 1st point		
 		size_t		parent;											// parent component number
 		std::vector <size_t> children;								// components on top of (*this)
@@ -311,7 +311,7 @@ public:
 
 			////////////////////////////////////////////////////////////////////////////////
 			//
-			// link to level roots
+			// link leaves to roots
 			//
 			
 			for ( auto p : indices ) {
@@ -322,7 +322,7 @@ public:
 
 			////////////////////////////////////////////////////////////////////////////////
 			//
-			// identify components ( ≥1 per level )
+			// identify components ( ≥1 per level ) at each point
 			//
 			level_t
 				ccount  = 0;
@@ -336,7 +336,8 @@ public:
 			
 			////////////////////////////////////////////////////////////////////////////////
 			//
-			// store components: { number, intensity, area, pos. root, number parent }
+			// store components: { number, intensity, size, pos. root, number parent }
+			// --> at this point, 'size' is *only* the number of points with this label
 			//
 			components.resize ( ccount + 1 );
 			for ( size_t p = 0; p < cdata.size(); p++ ) {
@@ -352,15 +353,15 @@ public:
 			
 			////////////////////////////////////////////////////////////////////////////////
 			//
-			// add higher components to lower
+			// add higher components to lower: size = uniq + all childrens' sizes
 			//
-			for ( size_t c = 0; c < components.size(); c++ ) 
+			for ( size_t c = 0; c < components.size(); c++ )       // just copy 'size' to 'uniq'
 				components [ c ].uniq = components [ c ].size;	
-			for ( size_t c = components.size() - 1; c > 0; c-- ) {
+			for ( size_t c = components.size() - 1; c > 0; c-- ) { // add 'uniq's of children to size
 				components [ components [ c ].parent ].size += components [ c ].size;
 				components [ components [ c ].parent ].children.push_back ( c );
 			}
-			for ( size_t c = 0; c < components.size(); c++ ) 
+			for ( size_t c = 0; c < components.size(); c++ )       // sort children from ow to high label
 				std::reverse ( components [ c ].children.begin(), components [ c ].children.end() );
 			
 		} // if Berger method used

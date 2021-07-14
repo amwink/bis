@@ -529,7 +529,7 @@ namespace bis {
 
                             // set the own (nifti type) header
                             superclass::header = nifti_simple_init_nim();
-                            superclass::header->datatype = getdatatype<value_type>();
+                            superclass::header->datatype = getniitype<value_type>();
                             nifti_datatype_sizes (
                                 superclass::header->datatype, &( superclass::header->nbyper ), &( superclass::header->swapsize ) );
                             auto dicompath = std::filesystem::path ( seriesfiles[0] );

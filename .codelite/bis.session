@@ -5,15 +5,15 @@
   <TabInfoArray Name="TabInfoArray">
     <TabInfo>
       <wxString Value="/home/amwink/software/cpp/bis/probis/src/probis.cpp" Name="FileName"/>
-      <int Value="170" Name="FirstVisibleLine"/>
+      <int Value="218" Name="FirstVisibleLine"/>
       <int Value="221" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>
     <TabInfo>
       <wxString Value="/home/amwink/software/cpp/bis/canabis/include/bismaxtree.hpp" Name="FileName"/>
-      <int Value="436" Name="FirstVisibleLine"/>
-      <int Value="450" Name="CurrentLine"/>
+      <int Value="141" Name="FirstVisibleLine"/>
+      <int Value="170" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>

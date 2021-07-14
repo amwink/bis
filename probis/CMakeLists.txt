@@ -22,6 +22,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 
 # Top project
 ## Add the dependencies
+add_subdirectory(${CMAKE_SOURCE_DIR}/../z ${CMAKE_CURRENT_BINARY_DIR}/z-build)
+add_subdirectory(${CMAKE_SOURCE_DIR}/../znz ${CMAKE_CURRENT_BINARY_DIR}/znz-build)
+add_subdirectory(${CMAKE_SOURCE_DIR}/../nifti ${CMAKE_CURRENT_BINARY_DIR}/nifti-build)
 add_subdirectory(${CMAKE_SOURCE_DIR}/../canabis ${CMAKE_CURRENT_BINARY_DIR}/canabis-build)
 # Define some variables
 set(PROJECT_probis_PATH "${CMAKE_CURRENT_LIST_DIR}")
@@ -104,6 +107,9 @@ target_link_libraries(probis ${LINK_OPTIONS})
 
 
 # Adding dependencies
+add_dependencies(probis z)
+add_dependencies(probis znz)
+add_dependencies(probis nifti)
 add_dependencies(probis canabis)
 
 

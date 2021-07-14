@@ -17,6 +17,28 @@
  */
 namespace bis {
 
+    /** \brief common2nifti: mapping (strings of) supported data types 
+	 * 						 to NIfTI values of the same types
+     *
+	 * These are used to print / set the data types in a C++ way
+	 * in getniftidatatype
+	 * 
+     */	
+	typedef struct { std::string common; std::string nifti; } common2nifti;
+	static const std::vector<common2nifti> nifti_type_strings={
+						{ "char",    "NIFTI_TYPE_INT8"         },
+						{ "uchar",   "NIFTI_TYPE_UINT8"        },
+						{ "short",   "NIFTI_TYPE_INT16"        },
+						{ "ushort",  "NIFTI_TYPE_UINT16"       },
+						{ "int",     "NIFTI_TYPE_INT32"        },
+						{ "uint",    "NIFTI_TYPE_UINT32"       },
+						{ "long",    "NIFTI_TYPE_INT64"        },
+						{ "ulong",   "NIFTI_TYPE_UINT64"       },
+						{ "float",   "NIFTI_TYPE_FLOAT32"      },
+						{ "double",  "NIFTI_TYPE_FLOAT64"      },
+						{ "ldouble", "NIFTI_TYPE_FLOAT128"     }
+	};
+	
     /** \brief niftiExport -- typename to memory buffer (in nifti record)
      *
      *  template parameters:
@@ -62,46 +84,46 @@ namespace bis {
         switch ( nim->datatype ) {
 
             case ( NIFTI_TYPE_UINT8 ) :
-                pixelImport<unsigned char> ( nifti_blob, bufsize, vec );
+                pixelImport<unsigned char>		( nifti_blob, bufsize, vec );
                 break;
             case ( NIFTI_TYPE_INT16 ) :
-                pixelImport<signed short> ( nifti_blob, bufsize, vec );
+                pixelImport<signed short>		( nifti_blob, bufsize, vec );
                 break;
             case ( NIFTI_TYPE_INT32 ) :
-                pixelImport<signed int> ( nifti_blob, bufsize, vec );
+                pixelImport<signed int>			( nifti_blob, bufsize, vec );
                 break;
             case ( NIFTI_TYPE_FLOAT32 ) :
-                pixelImport<float> ( nifti_blob, bufsize, vec );
+                pixelImport<float>				( nifti_blob, bufsize, vec );
                 break;
             /*case(NIFTI_TYPE_COMPLEX64):
                 pixelImport<complex_float> ( nifti_blob, bufsize, vec);
                 break;*/
             case ( NIFTI_TYPE_FLOAT64 ) :
-                pixelImport<double> ( nifti_blob, bufsize, vec );
+                pixelImport<double>				( nifti_blob, bufsize, vec );
                 break;
             /*case(NIFTI_TYPE_RGB24):
                 pixelImport<rgb_byte> ( nifti_blob, bufsize, vec);
                 break;*/
             case ( NIFTI_TYPE_INT8 ) :
-                pixelImport<signed char> ( nifti_blob, bufsize, vec );
+                pixelImport<signed char>		( nifti_blob, bufsize, vec );
                 break;
             case ( NIFTI_TYPE_UINT16 ) :
-                pixelImport<unsigned short> ( nifti_blob, bufsize, vec );
+                pixelImport<unsigned short>		( nifti_blob, bufsize, vec );
                 break;
             case ( NIFTI_TYPE_UINT32 ) :
-                pixelImport<unsigned int> ( nifti_blob, bufsize, vec );
+                pixelImport<unsigned int>		( nifti_blob, bufsize, vec );
                 break;
             case ( NIFTI_TYPE_INT64 ) :
-                pixelImport<signed long long> ( nifti_blob, bufsize, vec );
+                pixelImport<signed long long>	( nifti_blob, bufsize, vec );
                 break;
             case ( NIFTI_TYPE_UINT64 ) :
-                pixelImport<unsigned long long> ( nifti_blob, bufsize, vec );
+                pixelImport<unsigned long long>	( nifti_blob, bufsize, vec );
                 break;
             case ( NIFTI_TYPE_FLOAT128 ) :
-                pixelImport<long double> ( nifti_blob, bufsize, vec );
+                pixelImport<long double>		( nifti_blob, bufsize, vec );
                 break;
             /*case(NIFTI_TYPE_COMPLEX128):
-              // pixelImport<complex_double> ( nifti_blob, bufsize, vec);
+              // pixelImport<complex_double>	( nifti_blob, bufsize, vec);
               // break;*/
             /*case(NIFTI_TYPE_COMPLEX256):
               // pixelImport<complex_longdouble> ( nifti_blob, bufsize, vec);
@@ -126,7 +148,6 @@ namespace bis {
      *
      */
     template <typename DataVec>
-
     void setNiftiBricks ( nifti_image* nim, DataVec* vec ) {
 
         switch ( nim->datatype ) {
@@ -189,7 +210,7 @@ namespace bis {
     /** \brief get the correct nifti datatype for T the header
      *
      */
-    template <typename T> unsigned getdatatype() {
+    template <typename T> unsigned getniitype() {
 
         unsigned data_out = DT_UNKNOWN;
 
@@ -218,7 +239,7 @@ namespace bis {
 
         return ( data_out );
 
-    } // getdatatype
+    } // getniitype
 
     /** \brief bis::getenv() -- 
      *
@@ -244,6 +265,12 @@ namespace bis {
 
 
 
+    /** \brief bis::bisnifti: multi-dimensional image class
+     *
+     *  template parameters:
+	 *  value_type:		data type of the image points -- should be NIfTI-supported POD
+     *
+     */
     template <typename value_type>
 
     class bisnifti : public bisimage<value_type> {
@@ -252,13 +279,59 @@ namespace bis {
             using self = bisnifti<value_type>;
             using superclass = bisimage<value_type>;
 
-        protected:
+	protected:
+		
             /** \brief the header should be usable by subclas bisdicom
              *
              * header:  pointer to a NIfTI header
              *          for reading / writing files
              */
             nifti_image* header = nullptr;
+			
+            /** \brief the load () function takes care of NIfTI I/O
+             *
+             * inputs:
+			 * 		std::string		filename	(must be a NIfTI file)
+			 * 		bis::readdata	readornot	nonzero: read voxel data
+			 * 
+             */
+			int load( std::string filename, bis::readdata readornot ) { 
+				
+				if ( is_nifti_file ( filename.c_str() ) == -1 ) {
+					
+					throw bisExceptionIO( "bisNiftiImage::load() : %s is not a NifTI image", filename.c_str() );
+                    return (1);
+
+				}
+				
+				header = nifti_image_read ( filename.c_str(), readornot );
+
+                superclass::sizes.resize	( header->dim[0]	 );
+                superclass::strides.resize	( header->dim[0] + 1 );
+
+                // make the array 'strides' so that it uses the last dimension as well
+                superclass::strides[0] = 1;
+                for ( size_t i = 1; i <= superclass::sizes.size(); i++ ) {
+                    superclass::sizes[i - 1] = header->dim[i];
+                    superclass::strides[i] = superclass::strides[i - 1] * superclass::sizes[i - 1];
+                }
+
+                if ( readornot == bis::DO_READ_DATA ) {
+                    superclass::data.resize ( * ( superclass::strides.rbegin() ) ); // the end of strides holds the image's size
+                    bis::getNiftiBricks ( header, header->data, superclass::data.size(), superclass::getdata_ptr() );
+                } // if readornot
+	
+				return ( 0 );
+	
+			} // load()
+
+			void free_header() {			
+                if ( header != NULL ) {				
+                    if ( header->data != NULL )
+                        free( header->data );											
+                    free ( header );					
+				}
+			}
 
         public:
             /** \brief default constructor
@@ -275,12 +348,10 @@ namespace bis {
              * required) frees pointer to header
              */
             ~bisnifti() {
-
                 superclass::data.resize ( 0 );
                 superclass::sizes.resize ( 0 );
                 superclass::strides.resize ( 0 );
-                if ( header != NULL )
-                    free ( header );
+				free_header();
             }
 
             /** \brief constructor from a NIfTI image
@@ -290,26 +361,8 @@ namespace bis {
              * assigns its data, sizes and header to (*this).
              */
             bisnifti ( std::string filename, bis::readdata readornot = bis::DO_READ_DATA ) {
-
-                header = nifti_image_read ( filename.c_str(), readornot );
-
-                superclass::sizes.resize ( header->dim[0] );
-                superclass::strides.resize ( header->dim[0] + 1 );
-
-                // make the array 'strides' so that it uses the last dimension as well
-                superclass::strides[0] = 1;
-                for ( size_t i = 1; i <= superclass::sizes.size(); i++ ) {
-                    superclass::sizes[i - 1] = header->dim[i];
-                    superclass::strides[i] = superclass::strides[i - 1] * superclass::sizes[i - 1];
-                }
-
-                if ( readornot == bis::DO_READ_DATA ) {
-
-                    superclass::data.resize ( * ( superclass::strides.rbegin() ) ); // the end of strides holds the image's size
-
-                    bis::getNiftiBricks ( header, header->data, superclass::data.size(), superclass::getdata_ptr() );
-
-                } // if readornot
+				if ( load ( filename, readornot ) )
+					throw bis::bisExceptionIO( "bisnifti:load() : %s does not appear to be a valid NifTI image", filename.c_str() );
             }
 
             /** \brief (deep) copy constructor
@@ -328,30 +381,24 @@ namespace bis {
                 std::copy ( rhs.data.begin(), rhs.data.end(), superclass::data.begin() );
                 std::copy ( rhs.sizes.begin(), rhs.sizes.end(), superclass::sizes.begin() );
                 std::copy ( rhs.strides.begin(), rhs.strides.end(), superclass::strides.begin() );
+				
             }
 
             /** \brief constructor from a bisImage
              *
              * copies data and sizes from an existing bisimage, create header
              */
-            bisnifti ( bisimage<value_type>& rhs ) {
+            bisnifti ( superclass rhs ) : superclass ( rhs ) {
 
 				int64_t 
 					dims [ 8 ] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-				
-                superclass::data.resize ( rhs.getdatasize() );
-                superclass::sizes = rhs.getsize();
-                superclass::validate_sizes();
-                std::copy ( rhs.getdata_ptr()->begin(), rhs.getdata_ptr()->end(), superclass::data.begin() );
-
-                if ( header != NULL )
-                    free ( header );
 					
 				dims [ 0 ] = superclass::sizes.size();	
 				for ( unsigned d = 0; d < dims [ 0 ]; d++ )
 					dims [ d + 1 ] = superclass::sizes [ d ];
 				
-				header  = nifti_make_new_nim ( dims, getdatatype<value_type>(), 0 ); // the 0 is for not creating the intensities array
+				free_header(); // free header and header->data if necessary
+				header  = nifti_make_new_nim ( dims, getniitype<value_type>(), 0 ); // the 0 is for not creating the intensities array
 				header -> data = superclass::getdata_ptr();
 
             }
@@ -361,15 +408,12 @@ namespace bis {
              * assigns data, sizes and header of the
              * right-hand side (RHS) image to (*this)
              */
-            const bisnifti<value_type>& operator= ( bisnifti<value_type>& rhs ) {
+            bisnifti<value_type> operator= ( bisnifti<value_type> rhs ) {
 
                 if ( this != &rhs ) {
 
-                    // just to make sure we don't leave stuff
-                    if ( this->header != NULL ) {
-                        free ( header );
-                        header = NULL;
-                    }
+                    // just to make sure we don't leave stuff in header or header->data
+					free_header();
 
                     if ( rhs.header != NULL )
                         header = nifti_copy_nim_info ( rhs.header );
@@ -394,10 +438,26 @@ namespace bis {
              * The data type is changed to e.g. float for
              * more flexibility (at the cost of file size).
              */
-            void setNIIdatatype ( unsigned dtype ) {
+            void setniidatatype ( unsigned dtype ) {
 
                 header->datatype = dtype;
                 nifti_datatype_sizes ( header->datatype, &header->nbyper, &header->swapsize );
+            }
+
+            /** \brief load from a NIfTI image file
+             *
+			 * Read an existing NIfTI file's contents into an existing object.
+			 * This resets the intensities, sizes and header contents! 
+			 * 
+             */
+            void readnii ( std::string filename = "", bis::readdata readornot = DO_READ_DATA ) {
+				
+				// make sure header and header->data are deallocated
+				free_header();			
+
+				// load the image and use the load() function's return statement
+                load ( filename, readornot );
+
             }
 
             /** \brief write to a NIfTI image
@@ -410,7 +470,7 @@ namespace bis {
              * NIfTI routines are run on a temporary copy
              *       as they seem to be memory-unsafe
              */
-            void saveNII ( std::string filename = "" ) {
+            void writenii ( std::string filename = "" ) {
 
                 if ( ( filename != "" ) || ( strlen ( header->fname ) > 0 ) ) {
 
@@ -451,16 +511,110 @@ namespace bis {
 
                 } else
 
-                    std::cerr << "saveNII: no file name for image given";
+                    std::cerr << "savenii: no file name for image given";
             }
 
-            /** \brief getinfo() - returns the address of the
+            /** \brief getinfo() - returns the address of the header
              *
              * this is a pointer not the nifti record itself -- use with care
              */
             nifti_image* getinfo() {
                 return header;
             }
+
+            // assign a NIfTI header and make consistent
+            void setinfo ( nifti_image* newheader ) {
+
+                // get sizes of (this*)
+                auto nsizes = this->sizes;
+
+                nifti_image* 
+					oldhdr = header;
+				header = newheader;
+
+                // empty the old nifti dimensions array
+                for ( unsigned i = 1; i < 8; i++ )
+					header->dim [ i ] = 0;
+
+                // fill with sizes of (this*)
+                header->dim [ 0 ] = nsizes.size();
+                for ( int i = 1; i <= header->dim [ 0 ]; i++ )
+                    header->dim [ i ] = nsizes [ i-1 ];
+
+                // nifti function to update fields related to nim->dim
+                nifti_update_dims_from_array ( header );
+
+                free ( oldhdr );
+
+            }
+
+            // get file name
+            std::string getfileame () { 
+				return ( header->fname ); 
+			}
+
+            // change file name
+            int setfilename ( std::string filename ) {
+				
+				if ( header == nullptr ) {
+					
+					throw bisExceptionIO( "bisNiftiImage::setFileName() : NIfTI record not initialised -- cannot set file name");
+					return (-1);
+					
+				} // if header nullptr
+			
+				if (  ( header != nullptr ) && 
+					  ( nifti_set_filenames ( header, filename.c_str(), NO_CHECK_EXISTENCE, NO_SET_BYTEORDER ) )  ) {
+						  
+					throw bisExceptionIO( 	"bisNiftiImage::setFileName() : %s cannot be renamed to %s",
+											header->fname, filename.c_str() );
+					return(-1);
+					
+                } // if nifti subfunction unsuccessful
+				
+				return(0);
+			
+            } // setfilename()
+
+            // get data type
+            std::string getdatatype () { 
+				return ( nifti_datatype_to_string ( header->datatype) ); 
+			}
+
+            // change data type
+            short setdatatype ( std::string type_identifier ) {
+				
+				if ( nifti_datatype_from_string ( type_identifier.c_str() ) == DT_NONE ) {
+					
+					throw bisExceptionIO ( "bisNiftiImage::setDataType() : %s cannot be changed to unknown data data type %s",
+										   header->fname, type_identifier.c_str() );
+					 return(-1);
+					 
+				} else {
+					
+					header->datatype = nifti_datatype_from_string ( type_identifier.c_str() );
+					nifti_datatype_sizes( header->datatype , &( header->nbyper ) , &( header->swapsize ) ) ;
+					return ( header->datatype );
+					
+				}
+				
+            }
+
+            // select nifti data type based on a string "(u)char", "(u)short", "(u)int", "(u)long", "float", "(l)double"
+            std::string getniftidatatype ( std::string common ) {			
+                size_t 
+					i = 0;				
+                for ( ; i < ( nifti_type_strings.size() ); i++ )
+                    if ( common == nifti_type_strings[ i ].common )
+                        break;
+                if ( i < nifti_type_strings.size() )
+                    return ( nifti_type_strings[ i ].nifti );
+                else {
+                    throw bisExceptionIO( "bisNiftiImage::getNiftiDataType() : data data type %s not supported",
+                                           common.c_str() );
+                    return("DT_NONE");
+                } // if i				
+            } // getNiftiDatatype
 
             /** \brief infodump() - returns the address of the
              *

@@ -479,6 +479,25 @@ class bisimage {
 			
     }
 
+    /** \brief vector_get() - get the data from specified offsets
+     *
+	 * The input vector should contain the 1D offsets to be retrieved
+	 * 
+     */
+    std::vector<value_type> vector_get ( std::vector <size_t> offsets ) {
+		
+		std::vector<value_type> 
+			output ( offsets.size() );
+			
+		size_t 
+			position = 0;
+		for ( auto offset: offsets )
+			output [ position++ ] = data [ offset ];
+			
+		return ( output );	
+		
+    }
+
     /** \brief vector_mask() - sets the data vector to 0 outside where a mask vector is 0
      *
 	 * The mask vector should be the same size as the data vector
@@ -719,6 +738,33 @@ class bisimage {
 
     
 
+    // return indices of nonzero elements (e.g. a mask)
+    std::vector < size_t > nonzeros() {
+		
+        std::vector < size_t > 
+			nzarray ( data.size() );
+        size_t 
+			msize = 0;
+			
+        for ( size_t i = 0; i < nzarray.size(); i++ )
+            if ( data [ i ] !=0 )
+			   nzarray [ msize++ ] = i;
+        nzarray.resize ( msize );
+		
+        return ( nzarray );
+    }
+
+    // return indices of nonzero elements (e.g. a mask)
+    size_t n_nonzeros() {
+		
+        return count_if ( data.begin(),
+                          data.end(),
+                          std::bind2nd ( std::not_equal_to<value_type>(), 0 ) );
+						  
+    }
+
+
+
 /** Functions outside of the bisimage class.
  *  These can be used by bisimage objects, but
  *  are not required by the class and do not
@@ -779,11 +825,11 @@ void set_reducers ( size_t dimension,
  * 
  */
  
-const value_type 
+value_type 
     sum () { return ( std::accumulate ( data.begin(), data.end(), 0 ) ); }
 
-const bisimage < value_type > 
-    sum ( size_t dimension = 0 ) {
+bisimage < value_type > 
+    sum ( size_t dimension ) {
 
         auto             // new size is 1 dimension smaller
             newsize = sizes;
@@ -834,11 +880,11 @@ const bisimage < value_type >
  * 
  */
  
-const value_type 
+value_type 
     mean () { return ( sum() / getdatasize() ); }
 
-const bisimage < value_type > 
-    mean ( size_t dimension = 0 ) {
+bisimage < value_type >
+    mean ( size_t dimension ) {
         auto 
             output = sum ( dimension ) / sizes [ dimension ];
         return ( output );           
@@ -857,7 +903,7 @@ const bisimage < value_type >
  * 
  */
 
-const value_type
+value_type
 	var( std::string group = "population" ) {
 		
 		float_t 
@@ -870,7 +916,7 @@ const value_type
 		
 	}
 		
-const bisimage < value_type > 
+bisimage < value_type > 
     var ( size_t dimension = 0, std::string group = "population" ) {		
 
 		float_t

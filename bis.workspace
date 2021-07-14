@@ -11,6 +11,7 @@
   <Project Name="probis" Path="probis/probis.project" Active="Yes"/>
   <Project Name="biskits" Path="biskits/biskits.project" Active="No"/>
   <Project Name="z" Path="z/z.project" Active="No"/>
+  <Project Name="combis" Path="combis/combis.project" Active="No"/>
   <BuildMatrix>
     <WorkspaceConfiguration Name="Debug" Selected="yes">
       <Environment/>
@@ -21,6 +22,7 @@
       <Project Name="probis" ConfigName="Debug"/>
       <Project Name="biskits" ConfigName="Debug"/>
       <Project Name="z" ConfigName="Debug"/>
+      <Project Name="combis" ConfigName="Debug"/>
     </WorkspaceConfiguration>
     <WorkspaceConfiguration Name="Release" Selected="yes">
       <Environment/>
@@ -31,6 +33,7 @@
       <Project Name="probis" ConfigName="Release"/>
       <Project Name="biskits" ConfigName="Release"/>
       <Project Name="z" ConfigName="Release"/>
+      <Project Name="combis" ConfigName="Release"/>
     </WorkspaceConfiguration>
   </BuildMatrix>
 </CodeLite_Workspace>
