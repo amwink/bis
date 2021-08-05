@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Session Name="/home/amwink/software/cpp/bis/bis.workspace">
-  <int Value="1" Name="m_selectedTab"/>
+  <int Value="3" Name="m_selectedTab"/>
   <wxString Value="/home/amwink/software/cpp/bis/bis.workspace" Name="m_workspaceName"/>
   <TabInfoArray Name="TabInfoArray">
     <TabInfo>
@@ -12,7 +12,7 @@
     </TabInfo>
     <TabInfo>
       <wxString Value="/home/amwink/software/cpp/bis/canabis/include/bismaxtree.hpp" Name="FileName"/>
-      <int Value="141" Name="FirstVisibleLine"/>
+      <int Value="167" Name="FirstVisibleLine"/>
       <int Value="170" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
@@ -21,6 +21,13 @@
       <wxString Value="/home/amwink/software/cpp/bis/canabis/include/bisimage.hpp" Name="FileName"/>
       <int Value="89" Name="FirstVisibleLine"/>
       <int Value="90" Name="CurrentLine"/>
+      <wxArrayString Name="Bookmarks"/>
+      <IntVector Name="CollapsedFolds"/>
+    </TabInfo>
+    <TabInfo>
+      <wxString Value="/home/amwink/software/cpp/bis/canabis/include/bisdicomimage.hpp" Name="FileName"/>
+      <int Value="347" Name="FirstVisibleLine"/>
+      <int Value="371" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>

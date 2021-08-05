@@ -765,6 +765,57 @@ class bisimage {
 
 
 
+    /** \brief neighbour function, returns vector of neighbour offsets
+	 * 
+	 * input: connectivity: integer
+	 * 			2D images/3D slices:	4	-> neighbours left, right, before, after
+     *									8 	-> neighbours of 4, and 4  diagonals
+	 * 			3D images				6	-> neighbours left, right, before, after, below, above
+	 * 									26	-> neighbours of 6, and 20 diagonals
+     */
+	std::vector<long long> neighbours ( unsigned connectivity = 4 ) {
+		
+		std::vector<long long> 
+			nvec;
+			
+		switch ( connectivity ) {
+			
+			case 4:
+				assert ( sizes.size() >= 2 );
+				nvec = { -strides[1], -1, 1, strides[1] };
+				break;
+			case 8:
+				assert ( sizes.size() >= 2 );
+				nvec = { -strides[1] - 1, -strides[1], -strides[1] + 1, 
+									 - 1,							 1,
+						  strides[1] - 1,  strides[1],  strides[1] + 1
+					   };
+				break;
+			case 6:
+				assert ( sizes.size() >= 3 );
+				nvec = { -strides[2], -strides[1], -1, 1, strides[1], strides[2] };
+				break;
+			case 26:
+				assert ( sizes.size() >= 3 );
+				nvec = { -strides[2] - strides[1] - 1, -strides[2] - strides[1], -strides[2]  -strides[1] + 1,
+						 -strides[2] - 1,              -strides[2],							  -strides[2] + 1, 
+						 -strides[2] + strides[1] - 1, -strides[2] + strides[1], -strides[2] + strides[1] + 1, 
+									 - strides[1] - 1,				-strides[1],			  -strides[1] + 1, 
+												   -1,														1, 
+									   strides[1] - 1,				 strides[1], 			   strides[1] + 1, 
+						  strides[2] - strides[1] - 1,  strides[2] - strides[1],  strides[2] - strides[1] + 1, 
+						  strides[2] - 1, 				strides[2],				  strides[2]			  + 1, 
+						  strides[2] + strides[1] - 1,	strides[2] + strides[1],  strides[2] + strides[1] + 1
+					   };
+				break;
+				
+		} // switch connectivity
+
+		return ( nvec );
+
+	}
+
+
 /** Functions outside of the bisimage class.
  *  These can be used by bisimage objects, but
  *  are not required by the class and do not

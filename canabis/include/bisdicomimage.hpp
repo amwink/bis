@@ -389,7 +389,7 @@ namespace bis {
 
                         // In the first volume, find the sign of the slice positioning: if the
                         // position of slice 1 is lower than slice 0 then -1, otherwise +1.
-                        sidecar["Slicedirection"] =
+                        sidecar [ "Slicedirection" ] =
                             static_cast<int> ( bis::signum<float> ( seriesdata[1].slipos - seriesdata[0].slipos ) );
 
                         // Now determine the #slices in a volume by checking
@@ -398,7 +398,7 @@ namespace bis {
                         for ( auto startpos = ( seriesdata[0] ).slipos; sli < added_files; sli++ )
                             if ( ( seriesdata[sli] ).slipos == startpos )
                                 break;
-                        sidecar["Slices"] = sli;
+                        sidecar [ "Slices" ] = sli;
 
                         // double check if this is still true at the end
                         sli = added_files - 2;

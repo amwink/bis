@@ -325,11 +325,19 @@ namespace bis {
 	
 			} // load()
 
+            /** \brief clear the header, if present
+             *
+             * (also used by subclass bisdicom)
+			 * 
+			 * Note that this does not clear the array pointed to by *data, as
+			 * it may cause problems e.g. in transfer to/from bisImage objects
+             * or just plain header replacement inside a bisnifti object.
+			 * 
+             */
 			void free_header() {			
-                if ( header != NULL ) {				
-                    if ( header->data != NULL )
-                        free( header->data );											
-                    free ( header );					
+                if ( header != nullptr ) {				
+                    free ( header );
+					header = nullptr;
 				}
 			}
 

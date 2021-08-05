@@ -144,38 +144,8 @@ public:
 		//	3D		 6: only horizontal, vertical or sideways neighbours
 		//			26: all horizontal, vertical sideways and combinations
 		//
-
-		std::vector<long long> neighbours;
-		switch ( connectivity ) {
-		case 4:
-			assert ( sizes.size() >= 2 );
-			neighbours = { -strides[1], -1, 1, strides[1] };
-			break;
-		case 8:
-			assert ( sizes.size() >= 2 );
-			neighbours = { -strides[1] - 1, -strides[1], -strides[1] + 1, 
-									   - 1,							   1,
-							strides[1] - 1,	 strides[1],  strides[1] + 1
-			             };
-			break;
-		case 6:
-			assert ( sizes.size() >= 3 );
-			neighbours = { -strides[2], -strides[1], -1, 1, strides[1], strides[2] };
-			break;
-		case 26:
-			assert ( sizes.size() >= 3 );
-			neighbours = { -strides[2] - strides[1] - 1, - strides[2] - strides[1], -strides[2] - strides[1] + 1,
-			               -strides[2] - 1,              - strides[2],							- strides[2] + 1, 
-						   -strides[2] + strides[1] - 1, - strides[2] + strides[1], -strides[2] + strides[1] + 1, 
-						                -strides[1] - 1,              - strides[1],              -strides[1] + 1, 
-						                             -1,													   1, 
-										 strides[1] - 1,			    strides[1], 			  strides[1] + 1, 
-						    strides[2] - strides[1] - 1,   strides[2] - strides[1],	 strides[2] - strides[1] + 1, 
-						    strides[2] - 1, 			   strides[2], 				 strides[2]				 + 1, 
-						    strides[2] + strides[1] - 1,   strides[2] + strides[1],	 strides[2] + strides[1] + 1
-			             };
-			break;
-		}
+		auto 
+			neighbours = superclass::neighbours ( connectivity );
 
 		auto 
 			mn = *std::min_element ( data.begin(), data.end() ), 
