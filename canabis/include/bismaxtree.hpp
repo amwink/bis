@@ -23,9 +23,11 @@
  */
 namespace bis {
 
-
+/* use an integer type for storing maxtree levels
+ */
+typedef int level_t;
 	
-/* This enum is for choosing attributes later: strings 
+/* This enum is for evaluationg attributes later: strings 
  * don't work in a switch statements but strings that 
  * are mapped to enums do, see:
  * 
@@ -38,8 +40,14 @@ enum
 		evnotdefined,
 		evsize,
 		evmass,
+		evmin,
+		evmax,
+		evdirect,
+		evsubtract,
 		evend 
 	};
+
+
 	
 /* This static is for choosing attributes later: strings
  * don't work in a switch statements but strings that are 
@@ -50,9 +58,29 @@ enum
  */
 
 static std::map < std::string, stringvalue > 
-	mapstringvalues = {
+	attributevalues = {
 		{ "size", evsize },
 		{ "mass", evmass }
+	};
+
+
+
+/* This static is for choosing a mode for attribute 
+ * filtering based on a value (scalar / vector):
+ * 
+ *  minimum:  remove components with lower attribute values and all children
+ *  maximum:  keep components with high enough values and all their parents
+ *  direct:   remove components with lower attribute values, leave children intact
+ *  subtract: remove components with lower attribute values, lowering children's levels
+ * 
+ */
+
+static std::map < std::string, stringvalue > 
+	modevalues = {
+		{ "minimum",  evmin      },
+		{ "maximum",  evmax      },
+		{ "direct",   evdirect   },
+		{ "subtract", evsubtract }		
 	};
 
 
@@ -78,12 +106,10 @@ template <typename value_type> class bismaxtree : public bisimage<value_type> {
 
 
 
-	typedef int level_t;
-
 	typedef struct component {
-		level_t		value;  										// quantised value
-		size_t 		uniq;											// number of points with exactly this value
-		size_t		size;    										// number of points with at least this value
+		level_t		level;  										// quantised level
+		size_t 		uniq;											// number of points with exactly this level
+		size_t		size;    										// number of points with at least this level
 		size_t		root;    										// offset of 1st point		
 		size_t		parent;											// parent component number
 		std::vector <size_t> children;								// components on top of (*this)
@@ -175,7 +201,7 @@ public:
 				return ( input - mn );
 			} );
 		else {
-			// if the image contains more unique intensity values than "levels", divide by the proper scalar
+			// if the image contains more unique intensity levels than "levels", divide by the proper scalar
 			auto factor = static_cast<float> ( mx - mn ) / levels;
 			std::transform ( std::execution::seq, data.begin(), data.end(), quant.begin(),
 			[&mn, &factor] ( auto input ) {
@@ -314,7 +340,7 @@ public:
 				auto  c = cdata [ p ];
 				if ( ! 	components [ c ].size ) {
 						components [ c ].root   = p;
-						components [ c ].value  = quant                    [ p ];
+						components [ c ].level  = quant                    [ p ];
 						components [ c ].parent = cdata  [ parent [ root [ p ] ] ];			
 				}
 				components [ c ].size++;
@@ -354,25 +380,75 @@ public:
 
 	/** \brief get a component's points
 	 *
-	 * assigns contents of the right-hand side (RHS) maxtree to (*this)
+	 * get the list of points in a component <comp_start> and include up to <comp_end>
 	 */
-	const std::vector<size_t> getpoints ( size_t comp_start, size_t comp_end = 0, bool sorted = false ) {
+	const std::vector<size_t> getpoints ( size_t comp_start, size_t comp_end = 0, 
+										  bool sorted = false, std::vector<level_t> *mylevels = nullptr ) {
 		
 		std::vector<size_t> 
 			mypoints;
 		auto 
 			chigh = ( ! comp_end ) ? components.size() : comp_end;
-			
+		bool
+			use_levels = ( mylevels != nullptr ) ? true : false,
+			root_level = false;
+	
 		mypoints.insert ( mypoints.end(), components [ comp_start ].points.begin(), components [ comp_start ].points.end() );
+
+		// if an array of levels is used, initialise and fill it
+		if ( use_levels ) {
+			if ( !mylevels->size() )
+				root_level = true;				
+			mylevels->insert ( mylevels->end(), mypoints.size(), components [ comp_start ].level );			
+		}
+		
 		for ( auto c: components [ comp_start ].children )
 			if ( c <= chigh ) {
-				auto vec = getpoints( c, chigh, sorted );
+				auto vec = getpoints( c, chigh, sorted, mylevels );
 				mypoints.insert ( mypoints.end(), vec.begin(), vec.end() );
 			}
-			
 		
-		if (sorted)
-			std::sort( mypoints.begin(), mypoints.end() );
+		// if the points are sorted and levels are used, these need to be sorted too		
+		if ( sorted && root_level ) {
+			
+			if ( ! use_levels )
+
+				std::sort( mypoints.begin(), mypoints.end() );
+				
+			else {
+
+				std::vector<size_t> indices ( mypoints.size() );
+				std::iota ( indices.begin(), indices.end(), 0 );  
+				std::stable_sort ( indices.begin(), indices.end(),
+					[&] ( size_t i, size_t j ) { return ( mypoints[i] < mypoints[j] ); } );
+
+				for ( size_t i=0; i<mypoints.size(); i++ )
+					
+					while ( indices [ i ] != i ) {
+					
+						// indices of the current / target position 
+						size_t indi = indices [ i    ];
+						size_t  ind = indices [ indi ];
+						
+						// values at the target position
+						size_t  pnt =   mypoints  [ indi ];
+						level_t lev = (*mylevels) [ indi ];
+	
+						// copy current indices and values to target positions
+						  indices   [ indi ] =   indi;
+						  mypoints  [ indi ] =   mypoints [ i ];
+						(*mylevels) [ indi ] = (*mylevels) [ i ];
+						
+						// copy target indices and values to current positions
+						  indices   [ i ] = ind;
+						  mypoints  [ i ] = pnt;
+						(*mylevels) [ i ] = lev;
+						
+					} // while 
+						
+			} // if use_levels
+
+		} // if sorted
 		
 		return ( mypoints );
 		
@@ -383,24 +459,30 @@ public:
 	 * sets only the points in the image that belong to certain components
 	 * 
 	 */
-	bisimage<value_type> setpoints ( size_t comp_start, size_t comp_end = 0 ) {
-		
-		std::vector<size_t> 
-			mypoints = getpoints ( comp_start, comp_end, true );
-		std::vector<unsigned short> 
+	bisimage<value_type> setpoints ( size_t comp_start, size_t comp_end = 0, 
+									 bool sort = true, bool use_levels = true ) {
+				
+		std::vector<level_t> 
 			found ( superclass::data.size(), 0 );
+		std::vector<level_t> 
+			mylevels;
+		std::vector<level_t> 
+			*levptr = ( use_levels ) ? &mylevels : nullptr;
 		bisimage<value_type>
 			output = (*this);
+		std::vector<size_t> 
+			mypoints = getpoints ( comp_start, comp_end, sort, levptr );
 		
+		size_t counter = 0;
 		for ( auto p: mypoints )
-			found [ p ] = 1;
+			found [ p ] = ( use_levels ) ? mylevels [ counter++ ] : 1;
 		output.vector_set ( found );
 
 		return ( output );
 		
-	} // assignment
+	} // setpoints
 
-	/** \brief get a component's attribute
+	/** \brief add components' attribute to their list
 	 *
 	 * Inserts an attribute in each component's attribute list
 	 * 	- similarly to getpoints() -- higher components pass down their points -- but:
@@ -408,7 +490,7 @@ public:
 	 *  - accumulated points are used for attibute computation
 	 * 
 	 */
-	const std::vector<size_t> getattr ( std::string attribute, 
+	const std::vector<size_t> addattr ( std::string attribute, 
 										size_t comp_start = 0, 
 										size_t comp_end	  = 0 ) {
 		
@@ -418,15 +500,14 @@ public:
 			cend = ( ! comp_end ) ? components.size() : comp_end;
 		
 		// first gather all the points belonging to the component
-		mypoints.insert ( mypoints.end(), components [ comp_start ].points.begin(), components [ comp_start ].points.end() );
 		for ( auto c: components [ comp_start ].children ) 			
 			if ( c <= cend ) {
-				auto vec = getattr ( attribute, c );
+				auto vec = addattr ( attribute, c );
 				mypoints.insert ( mypoints.end(), vec.begin(), vec.end() );
 			}
 			
 		// then compute attribute (vector of double_t) based on points
-		switch ( mapstringvalues [ attribute ] ) {
+		switch ( attributevalues [ attribute ] ) {
 			case evsize: // give each component its size attribute ( # points )
 				components [ comp_start ].attributes [ "size" ] = { components [ comp_start ].size };
 			break;
@@ -447,6 +528,146 @@ public:
 		
 	} // getpoints
 
+	/* Remove a node from the component tree by 
+	 *   -- copying its points to its parent
+	 *   -- linking its children to its parent
+	 */
+	void removeself ( size_t component_index ) {
+		
+		auto cc = components [ component_index ],
+			 pc = components [ cc.parent ];
+			 
+		pc.points.insert ( pc.points.end(), cc.points.begin(), cc.points.end() );	// copy own points to parent
+		cc.points.clear();															// clear own points
+		
+		cc.size = 0;																// thus, (uniqe) size = 0
+		cc.uniq = 0;
+
+		for ( auto c: cc.children ) {												// move every child to parent
+			components [ c ].parent = cc.parent;
+			pc.children.insert ( c );
+		}
+		cc.children.clear();														// clear own children		
+		pc.children.erase ( std::remove ( pc.children.begin(),
+										  pc.children.end(), 
+										  component_index ), 						// remove from parent's children list
+							pc.children.end() );									// https://en.wikipedia.org/wiki/Erase%E2%80%93remove_idiom
+
+		cc.attributes.clear();														// clear own attributes
+		cc.wasremoved = true;														// set self to removed
+		
+		return;
+		
+	}
+
+	/* Filter the tree baased on attrbute "name" having a {value}
+	 */
+	void filter ( const std::string& attrname,
+				  const std::vector<double_t>& attrval_lo,
+				  const std::string& mode = "subtract",
+				  size_t comp_start = 0,
+				  size_t comp_end   = 0,
+				  const std::vector<double_t>& attrval_hi = {},
+				  bool 	 wasremoved = false ) {
+
+		for ( auto c: components ) // first check if all components have this attribute
+			if ( c.attributes.find ( attrname ) == c.attributes.end() ) {
+				std::cerr << "Warning: not all components have attribute [" << attrname << "], nothing filtered." << std::endl;
+				return;
+			} // for c
+					
+		// check if our attribute uses only 1 number (often enough as many are scalars)
+		bool scalar_attr = ( attrval_lo.size() == 1 ) ? true : false; // is this true in this case?
+			
+		if ( scalar_attr ) {								// makes it much easier
+			
+			// get the current component's attribute value and parent
+			double cvalue = components [ comp_start ].attributes [ attrname ] [ 0 ];
+
+			double_t fbvalue = attrval_lo [ 0 ]; 			// get the first value - lower threshold
+			double_t ftvalue = cvalue + 1;
+			if ( attrval_hi.size() )
+				     ftvalue = attrval_hi [ 0 ];			// get the first value - upper threshold		
+						
+			switch ( modevalues [ mode ] ) {
+				
+				case evmin: // delete all chidren of deleted components
+				
+					{ // if you should be / parent was removed -> remove and then tell children to 
+					
+						auto p = components [ comp_start ].parent;
+						if ( ( cvalue < fbvalue ) || ( cvalue > ftvalue ) || wasremoved ) {      
+							removeself ( comp_start );
+							for ( auto c: components [ comp_start ].children )
+								filter ( attrname, attrval_lo, mode, c, comp_end, { attrval_hi }, true );
+						} // if cvalue
+						
+					} // scope
+					break;
+				
+				case evmax: // keep components if at least 1 child is kept
+								
+					{ // first check children, only try to delete if none remain (search kids first)
+					
+						bool cremove = true;
+						for ( auto c: components [ comp_start ].children ) {
+							filter ( attrname, attrval_lo, mode, c, comp_end, attrval_hi, false );
+							if ( ! components [ c ].wasremoved ) {
+								cremove = false;
+								break;
+							} // if wasremoved
+						} // for c					
+									
+						// only delete if all children are deleted and attribute outside range
+						if ( cremove && ( ( cvalue < fbvalue ) || ( cvalue > ftvalue ) ) ) 
+							removeself ( comp_start );																	
+							
+					} // scope 
+					break;
+				
+				case evdirect: // delete component and lower own level, but keep children's levels
+				
+					// deletion test is only base on attribute
+					if ( ( cvalue < fbvalue ) || ( cvalue > ftvalue ) )
+						removeself ( comp_start );				
+					
+					// after that, filter children
+					for ( auto c: components [ comp_start ].children ) 
+						filter ( attrname, attrval_lo, mode, c, comp_end, attrval_hi, false );
+
+					break;
+					
+				case evsubtract: // delete component, lower own and children's level
+
+					// if filter is called with 'subtract' and wasremove == true  -> lower level by 1
+					//                                         wasremove == false -> check attribute
+					if ( wasremoved )
+						components [ comp_start ].level--;				
+					else
+						if ( ( cvalue < fbvalue ) || ( cvalue > ftvalue ) ) {
+							removeself( comp_start );
+							for ( auto c: components [ comp_start ].children ) 
+								filter ( attrname, attrval_lo, mode, c, comp_end, attrval_hi, true );
+						}
+						
+					// after that, filter children
+					for ( auto c: components [ comp_start ].children )
+						filter ( attrname, attrval_lo, mode, c, comp_end, attrval_hi, false );
+
+					break;
+					
+				default:
+					std::cout << "Unknown mode: " << mode << std::endl;
+					
+			} // switch mapstringvalues
+			
+			
+		} // if scalar_attr
+				
+		return;
+									 
+	} // filter
+
 	/*
 	* make std::cout so that it summarises the tree
 	* 
@@ -459,7 +680,7 @@ public:
 					<<  ": { size: "   << std::setfill ( ' ' ) << std::setw ( 3 ) << output.components[c].size    
 					<<  ", (unique: "  << std::setfill ( ' ' ) << std::setw ( 3 ) << output.components[c].uniq
 					<< "), root: "     << std::setfill ( ' ' ) << std::setw ( 3 ) << output.components[c].root   
-					<<  ", value: "    << std::setfill ( ' ' ) << std::setw ( 3 ) << output.components[c].value   
+					<<  ", level: "    << std::setfill ( ' ' ) << std::setw ( 3 ) << output.components[c].level   
 					<<  ", parent: "   << std::setfill ( ' ' ) << std::setw ( 3 ) << output.components[c].parent
 					<<  ", children: " << std::setfill ( ' ' ) << std::setw ( 3 ) << output.components[c].children << " }" 
 					<< std::endl;			

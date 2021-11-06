@@ -4,7 +4,6 @@
     <Include Path="/usr/local/include"/>
     <Include Path="/usr/include"/>
   </WorkspaceParserPaths>
-  <Environment Name="&lt;Use Defaults&gt;"/>
-  <WorkspaceParserFlags flags="15"/>
+  <WorkspaceParserFlags flags="8"/>
   <WorkspaceParserMacros/>
 </Workspace>

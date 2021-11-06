@@ -38,6 +38,7 @@ add_definitions(
 
 # Linker options
 set(LINK_OPTIONS -lz)
+set(LINK_OPTIONS ${LINK_OPTIONS} )
 
 
 if(WIN32)

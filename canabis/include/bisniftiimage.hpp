@@ -26,17 +26,17 @@ namespace bis {
      */	
 	typedef struct { std::string common; std::string nifti; } common2nifti;
 	static const std::vector<common2nifti> nifti_type_strings={
-						{ "char",    "NIFTI_TYPE_INT8"         },
-						{ "uchar",   "NIFTI_TYPE_UINT8"        },
-						{ "short",   "NIFTI_TYPE_INT16"        },
-						{ "ushort",  "NIFTI_TYPE_UINT16"       },
-						{ "int",     "NIFTI_TYPE_INT32"        },
-						{ "uint",    "NIFTI_TYPE_UINT32"       },
-						{ "long",    "NIFTI_TYPE_INT64"        },
-						{ "ulong",   "NIFTI_TYPE_UINT64"       },
-						{ "float",   "NIFTI_TYPE_FLOAT32"      },
-						{ "double",  "NIFTI_TYPE_FLOAT64"      },
-						{ "ldouble", "NIFTI_TYPE_FLOAT128"     }
+						{ "char",    "NIFTI_TYPE_INT8"     },
+						{ "uchar",   "NIFTI_TYPE_UINT8"    },
+						{ "short",   "NIFTI_TYPE_INT16"    },
+						{ "ushort",  "NIFTI_TYPE_UINT16"   },
+						{ "int",     "NIFTI_TYPE_INT32"    },
+						{ "uint",    "NIFTI_TYPE_UINT32"   },
+						{ "long",    "NIFTI_TYPE_INT64"    },
+						{ "ulong",   "NIFTI_TYPE_UINT64"   },
+						{ "float",   "NIFTI_TYPE_FLOAT32"  },
+						{ "double",  "NIFTI_TYPE_FLOAT64"  },
+						{ "ldouble", "NIFTI_TYPE_FLOAT128" }
 	};
 	
     /** \brief niftiExport -- typename to memory buffer (in nifti record)
@@ -458,7 +458,7 @@ namespace bis {
 			 * This resets the intensities, sizes and header contents! 
 			 * 
              */
-            void readnii ( std::string filename = "", bis::readdata readornot = DO_READ_DATA ) {
+            void read ( std::string filename = "", bis::readdata readornot = DO_READ_DATA ) {
 				
 				// make sure header and header->data are deallocated
 				free_header();			
@@ -478,7 +478,7 @@ namespace bis {
              * NIfTI routines are run on a temporary copy
              *       as they seem to be memory-unsafe
              */
-            void writenii ( std::string filename = "" ) {
+            virtual void write ( std::string filename = "" ) {
 
                 if ( ( filename != "" ) || ( strlen ( header->fname ) > 0 ) ) {
 

@@ -13,6 +13,10 @@
   <VirtualDirectory Name="include">
     <File Name="include/znzlib.h"/>
   </VirtualDirectory>
+  <Dependencies Name="Debug">
+    <Project Name="z"/>
+  </Dependencies>
+  <Dependencies Name="Release"/>
   <Settings Type="Dynamic Library">
     <GlobalSettings>
       <Compiler Options="-DHAVE_ZLIB; " C_Options="-DHAVE_ZLIB; " Assembler="">
@@ -22,7 +26,7 @@
         <IncludePath Value="$(WorkspacePath)/z"/>
         <IncludePath Value="$(WorkspacePath)/znz/include"/>
       </Compiler>
-      <Linker Options="-lz">
+      <Linker Options="-lz; ">
         <LibraryPath Value="."/>
         <LibraryPath Value=".."/>
         <LibraryPath Value="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/output"/>
@@ -108,8 +112,4 @@
       </Completion>
     </Configuration>
   </Settings>
-  <Dependencies Name="Debug">
-    <Project Name="z"/>
-  </Dependencies>
-  <Dependencies Name="Release"/>
 </CodeLite_Project>

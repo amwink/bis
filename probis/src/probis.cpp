@@ -2,9 +2,72 @@
 #include "bismaxtree.hpp"
 #include <cstdlib>
 
+// using the zip library
+#include <zip.h>
+
 using namespace bis;
 
-int main()
+std::vector < std::filesystem::path > fullpath_extract ( std::filesystem::path dicomsdir, 
+														 std::filesystem::path dicomzip ) {
+															 
+	std::vector < std::filesystem::path > 
+		file_list;
+
+	int  
+		zip_err = 0;
+	auto 
+		zip_archive = zip_open ( dicomzip.c_str(), 0, &zip_err );
+	auto  
+		files_total = zip_get_num_files ( zip_archive );
+	struct zip_stat
+		zst;
+	
+	// init the zip archive stats, including its list of files
+	zip_stat_init ( &zst );
+	
+	// extract all files from the list
+	for ( int i = 0; i < files_total; i++ ) {
+		
+		auto 
+			file_in_zip = zip_fopen_index ( zip_archive, i, 0 );
+		
+		if ( file_in_zip ) {
+
+			// init the archived file's stats,, including its name and uncompressed size
+			zip_stat_index ( zip_archive, i, 0, &zst );
+			std::string
+				fname ( zst.name );								
+			auto 
+				*contents = new char [ zst.size ];
+			auto 
+				inpath = dicomsdir;			
+
+			// get the current name -- assume files in directories occur after them in the list
+			inpath += ( "/tmp/" + fname );
+			
+			// if directory (trailing '/') create that, if file extract it
+			if ( *fname.rbegin() == '/' )
+				std::filesystem::create_directories ( inpath );				
+			else {
+				zip_fread ( file_in_zip, contents, zst.size );
+				if ( std::ofstream ( inpath , std::ofstream::binary ).write( contents, zst.size ) )
+					file_list.push_back( inpath );
+			} // if file not dir
+				
+			// free the space used for extraction
+			delete [] contents;
+				
+		} // if file_in_zip
+		
+	} // for i	
+
+	return ( file_list );
+
+}
+
+
+
+int main ( int argc, char* argv[] )
 {
     
     
@@ -16,19 +79,18 @@ int main()
     else
         fsldir = "/usr/local/fsl";
     std::string 
-        dcmdir = "/home/amwink/work/projects/epad/example_data/data/epad-download/040-00003/Screening/ASL/040-00003_Screening_MRI_ASL_MR-EPAD_ASL_2025_version1";
+        dcmdir;
         
     std::cout << "hello from canabis! \n";
-    std::cout << "fsl directory: " << fsldir << " \n";
 
     auto 
-        do_2d    = false,  // test 2D vectors & matrices
-        do_3d    = false,  // test 3D vectors & matrices ( only tested if do_2d )
-        do_4d    = false,  // test 3D vectors & matrices ( only tested if do_3d )    
-        do_nifti = false,   // test nifti file interactions
-        do_dicom = false,  // test nifti file interactions
-        do_reduce = true, // test dimensionality reducer 
-		do_maxtree = true; // test maxtree
+        do_2d      = false,  // test 2D vectors & matrices
+        do_3d      = false,  // test 3D vectors & matrices ( only tested if do_2d )
+        do_4d      = false,  // test 3D vectors & matrices ( only tested if do_3d )    
+        do_nifti   = true,  // test nifti file interactions
+        do_dicom   = true,  // test dicom import
+        do_reduce  = false, // test dimensionality reducer 
+		do_maxtree = false; // test maxtree
 
     ////////////////////////////////////////
     // 1.
@@ -147,7 +209,7 @@ int main()
         std::string test_file ( fsldir + "/data/standard/MNI152_T1_2mm_brain.nii.gz" );
         std::cout << "loading " << test_file << " ..." << std::endl;
         bisnifti<float> test_image ( test_file, bis::DO_READ_DATA );        
-        test_image.writenii( dcmdir + "/MNI152_T1_2mm_brain.nii.gz" );   
+        test_image.write ( "/tmp/MNI152_T1_2mm_brain.nii.gz" );   
     
     }
       
@@ -160,13 +222,65 @@ int main()
         //
         // Test DICOM I/O
         //
+		// Find zip-files of dicoms in <bis directory>/data/dicom
+		// and extract and convert each of them. Pixel array sizes,
+		// coordinate spaces, bvecs and bvals can then be checked.
+		
+		// first find the bis directory from which we were called
+		auto 
+			mypath = std::filesystem::path(argv[0]).parent_path();
 
-        std::string test_file2 ( dcmdir + "/EPAD_040-00003_Screening_002159.dcm" );
-        bis::bisdicom<unsigned short> test_image2 ( test_file2 );
-        std::cerr << "file successfully read\n";
-        test_image2.writenii( dcmdir + "/EPAD_040-00003_Screening_002159.nii.gz" );   
+		// given that we're in */bis/cmake-build-Debug/output" (or Release)
+		// we can now find bis/data/dicoms
+		auto 
+			dicomsdir = mypath.parent_path().parent_path();
+		dicomsdir += "/data/dicom";
+		
+		std::vector < std::filesystem::path > 
+			dicomzips;
+		for ( auto& possible_zip: std::filesystem::recursive_directory_iterator ( dicomsdir ) )
+			if ( ( possible_zip.path().extension() == ".zip" ) && 
+				 ( possible_zip.path().filename() != "philipsDicom.zip" ) && 
+				 ( possible_zip.path().filename() != "siemensDicom.zip" ) )
+				dicomzips.push_back ( possible_zip.path() );		
 
-    }
+		for ( auto dicomzip: dicomzips ) {
+			
+			std::cout << "unpacking " << dicomzip << "... " << std::endl;
+			
+			auto 
+				dicomlist = fullpath_extract( dicomsdir, dicomzip );
+			auto 
+				counter = 0;
+				
+			// list files (optional)
+			bool listfiles = false;
+			if ( listfiles )
+				for ( auto v: dicomlist )
+					printf ( "dicom %04d in %s: %s\r", counter++, dicomsdir.c_str(), v.c_str() );
+
+			// find the first dicom (assuming there's one series in the ZIP file) 
+			DcmFileFormat 
+				dcmfile;
+			for ( counter = 0; auto v: dicomlist ) {
+				if ( dcmfile.loadFile ( v.c_str() ).good() )
+					break;
+				counter++;
+			}
+			
+			std::string 
+				dcmslice = dicomlist[counter].string();
+			std::cout << "converting: " << dcmslice << "... " << std::endl;	
+			
+			// make a dicom object of this DICOM's series and write as a bids image
+			bis::bisdicom<unsigned short> test_dicom ( dcmslice );
+			std::string 
+				newname = dcmslice.substr ( 0, dcmslice.find_last_of('.') ) + ".nii.gz";
+			test_dicom.write ( newname );   
+		
+		} // for dicomzip
+	
+	} // if do_dicom
     
     
     
@@ -192,7 +306,7 @@ int main()
         bisnifti<unsigned short> 
 			mri_data ( mri_name, bis::DO_READ_DATA );
 		mri_data = mri_data.mean( 2 );
-		mri_data.writenii ( "/tmp/2dmean.nii.gz" );
+		mri_data.write ( "/tmp/2dmean.nii.gz" );
     }
 
 
@@ -213,7 +327,7 @@ int main()
 			mri_data ( mri_name, bis::DO_READ_DATA );						// load as nifti image
         std::cout << "building maxtree ..." << std::endl;
         bismaxtree<unsigned short> mri_mt (	mri_data,						// image of which to build the maxtree
-											8,								// number of levels ( test image: 4 )
+											16,								// number of levels ( test image: 4 )
 											2 * mri_data.getsize().size(),	// type of connectivity (4|8 for 2D, 6|26 for 3D)
 											"Berger" );						// method ( "Berger" works, hopefully will add others)
 
@@ -221,17 +335,17 @@ int main()
 			mri_labels ( mri_mt );											// first cast maxtree to bisnifti: labels -> voxels
 		bisnifti < unsigned short > 
 			nifti_labels ( mri_labels );									// then cast bisimage to bisnifti (minimal header info!)
-		nifti_labels.writenii ( "/tmp/mri_mt.nii.gz" );
+		nifti_labels.write ( "/tmp/mri_mt.nii.gz" );
 
-		mri_mt.getattr ( "mass" );
+		mri_mt.addattr ( "mass" );
 
 		auto cnum = 240;
-        std::cout << "writing mask of component " << cnum << " and kids ..." << std::endl;
+        std::cout << "writing mask of component " << cnum << " and kids ..." << std::endl;	
 		auto 
-			mri_set = mri_mt.setpoints ( cnum, 0 );							// auto: output type setpoints() fixed
+			mri_set = mri_mt.setpoints ( 1, 0, DO_SORT, DO_LEVEL );		// auto: output type setpoints() fixed
 		bisnifti < unsigned short >											// not auto: cast bisimage to bisnifti
 			nifti_set ( mri_set );		
-		nifti_set.writenii ( "/tmp/mri_mask.nii.gz" );
+		nifti_set.write ( "/tmp/mri_mask.nii.gz" );
 
     }
 

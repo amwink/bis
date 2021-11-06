@@ -58,7 +58,8 @@ add_definitions(-O0)
 add_definitions(-Wall)
 
 # Linker options
-set(LINK_OPTIONS -lz)
+set(LINK_OPTIONS -lzip)
+set(LINK_OPTIONS ${LINK_OPTIONS} -lz)
 set(LINK_OPTIONS ${LINK_OPTIONS} -lznz)
 set(LINK_OPTIONS ${LINK_OPTIONS} -lnifti)
 set(LINK_OPTIONS ${LINK_OPTIONS} -lcanabis)

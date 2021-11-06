@@ -11,6 +11,13 @@
     <File Name="src/probis.cpp"/>
   </VirtualDirectory>
   <VirtualDirectory Name="include"/>
+  <Dependencies Name="Debug">
+    <Project Name="z"/>
+    <Project Name="znz"/>
+    <Project Name="nifti"/>
+    <Project Name="canabis"/>
+  </Dependencies>
+  <Dependencies Name="Release"/>
   <Settings Type="Executable">
     <GlobalSettings>
       <Compiler Options="-std=gnu++2a; -Wno-narrowing; " C_Options="" Assembler="">
@@ -22,7 +29,7 @@
         <IncludePath Value="$(WorkspacePath)/z"/>
         <IncludePath Value="$(WorkspacePath)/znz/include"/>
       </Compiler>
-      <Linker Options="-lz; -lznz; -lnifti; -lcanabis; -lofstd; -loflog; -ldcmdata; -ldcmimgle; -ltbb; ">
+      <Linker Options="-lzip; -lz; -lznz; -lnifti; -lcanabis; -lofstd; -loflog; -ldcmdata; -ldcmimgle; -ltbb; ">
         <LibraryPath Value="."/>
         <LibraryPath Value=".."/>
         <LibraryPath Value="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/output"/>
@@ -108,11 +115,4 @@
       </Completion>
     </Configuration>
   </Settings>
-  <Dependencies Name="Release"/>
-  <Dependencies Name="Debug">
-    <Project Name="z"/>
-    <Project Name="znz"/>
-    <Project Name="nifti"/>
-    <Project Name="canabis"/>
-  </Dependencies>
 </CodeLite_Project>

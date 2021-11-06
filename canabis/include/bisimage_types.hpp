@@ -21,6 +21,24 @@ enum readdata {
 
 
 
+/** \brief NO/DO sort data enumeration (used in maxtree)
+ */
+enum sortdata {
+    NO_SORT,
+    DO_SORT
+};
+
+
+
+/** \brief NO/DO use level data in maxtree mask (used in maxtree)
+ */
+enum uselevel {
+    NO_LEVEL,
+    DO_LEVEL
+};
+
+
+
 /** \brief NO/DO check for file existence enumeration for easily readable code
  */
 enum check_existence {
