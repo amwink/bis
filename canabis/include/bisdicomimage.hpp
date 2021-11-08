@@ -185,8 +185,9 @@ class bisdicom : public bisbids<value_type> {
     std::vector<size_t> im_size;
 
     // necessary forward declarations -- function definitions are after class definition for general tidiness
-    std::vector<filestats>   get_seriesfiledata ( std::string dirname );
-	std::vector<std::string> get_intensitydata  ( std::vector<filestats> series_filedata );
+    std::vector<filestats>   get_seriesfiledata ( std::string 				dirname         );
+	std::vector<std::string> get_intensitydata  ( std::vector<filestats>& 	series_filedata );
+	void 					 get_metadata 		( std::vector<std::string>&	series_files    );
 
   public:
     bisdicom ( std::string fname ) {
@@ -223,204 +224,7 @@ class bisdicom : public bisbids<value_type> {
 \
 			////////////////////////////////////////////////////////////////////////////////////////////////
 			// The voxel data are in now. For BIDS, all that is left are the JSON and the NIfTI header
-
-			// Firstly, the Q- and S-forms in the header.
-			// The S-form can handle more transforms than the Qform, so we copy the Q-form to the S-form (not vice
-			// versa)
-			//
-			// we need some data from vol 0 slice 0, and vol 0 slice n-1, to get qform
-			// see https://discovery.ucl.ac.uk/id/eprint/1495621
-			DcmFileFormat tmpfile;
-			vec3<float> sli_0_pos, sli_n_pos;
-
-			unsigned sli = superclass::sidecar["Slices"];
-			tmpfile.loadFile ( seriesfiles[0].c_str () );
-			DcmDataset* tmpdata = tmpfile.getDataset ();
-			sli_0_pos[0] = static_cast<float> (
-				std::stof ( std::string ( getItemString ( tmpdata, DCM_ImagePositionPatient, 0 ).c_str () ) ) );
-			sli_0_pos[1] = static_cast<float> (
-				std::stof ( std::string ( getItemString ( tmpdata, DCM_ImagePositionPatient, 1 ).c_str () ) ) );
-			sli_0_pos[2] = static_cast<float> (
-				std::stof ( std::string ( getItemString ( tmpdata, DCM_ImagePositionPatient, 2 ).c_str () ) ) );
-
-			tmpfile.loadFile ( seriesfiles[sli - 1].c_str () );
-			tmpdata = tmpfile.getDataset ();
-			sli_n_pos[0] = static_cast<float> (
-				std::stof ( std::string ( getItemString ( tmpdata, DCM_ImagePositionPatient, 0 ).c_str () ) ) );
-			sli_n_pos[1] = static_cast<float> (
-				std::stof ( std::string ( getItemString ( tmpdata, DCM_ImagePositionPatient, 1 ).c_str () ) ) );
-			sli_n_pos[2] = static_cast<float> (
-				std::stof ( std::string ( getItemString ( tmpdata, DCM_ImagePositionPatient, 2 ).c_str () ) ) );
-
-			sli--; // we need to use sidecar [ "Slices" ] - 1
-
-			// Dicom voxel to mm transform
-			mat4<float> Rdcm ( slice_orx[0] * voxsize[0], slice_ory[0] * voxsize[1],
-							   ( sli_n_pos[0] - sli_0_pos[0] ) / sli, sli_0_pos[0], slice_orx[1] * voxsize[0],
-							   slice_ory[1] * voxsize[1], ( sli_n_pos[1] - sli_0_pos[1] ) / sli, sli_0_pos[1],
-							   slice_orx[2] * voxsize[0], slice_ory[2] * voxsize[1],
-							   ( sli_n_pos[2] - sli_0_pos[2] ) / sli, sli_0_pos[2], 0, 0, 0, 1 );
-
-			// NIfTI voxel to mm transform
-			mat4<float> Rnii ( -Rdcm[0][0], -Rdcm[0][1], -Rdcm[0][2], -Rdcm[0][3], -Rdcm[1][0], -Rdcm[1][1],
-							   -Rdcm[1][2], -Rdcm[1][3], Rdcm[2][0], Rdcm[2][1], Rdcm[2][2], Rdcm[2][3], 0, 0, 0,
-							   1 );
-
-			// usually (if slices go top -> bottom) we want to flip the Y axis
-			//                  (dicom: positive is RL, nifti: positive is LR)
-			// see https://github.com/rordenlab/dcm2niix/blob/master/console/nii_dicom.cpp#L2659
-			if ( superclass::sidecar["Slicedirection"] < 0 ) {
-
-				Rnii[0][1] *= -1; //
-				Rnii[1][1] *= -1; // flip the 2nd (y) column of Rnii
-				Rnii[2][1] *= -1; //
-
-				vec4<float> yflip_ori ( 0, im_size[1] - 1, 0, 0 ); // yflip_ori: vector of the new origin
-				yflip_ori = ( Rnii * yflip_ori );
-
-				Rnii[0][3] -= yflip_ori[0]; //
-				Rnii[1][3] -= yflip_ori[1]; // restore origin after flipping
-				Rnii[2][3] -= yflip_ori[2]; //
-
-				// and flip the voxels!
-				size_t st = superhyper::sizes[3], sz = superhyper::sizes[2], sy = superhyper::sizes[1],
-					   sx = superhyper::sizes[0], sy1 = sy - 1, sy2 = sy / 2;
-				for ( size_t t = 0; t < st; t++ )
-				for ( size_t k = 0; k < sz; k++ )
-					for ( size_t j = 0; j < sy2; j++ )
-					for ( size_t i = 0; i < sx; i++ )
-						std::swap<value_type> ( ( *this )[{ i, j, k, t }],
-												( *this )[{ i, sy1 - j, k, t }] );
-
-			}; // if slicedirection
-
-			//
-			// populate the NIfTI header
-			//
-
-			// set the own (nifti type) header
-			supersuper::header = nifti_simple_init_nim ();
-			supersuper::header->datatype = getniitype<value_type> ();
-			nifti_datatype_sizes ( supersuper::header->datatype, &( supersuper::header->nbyper ),
-								   &( supersuper::header->swapsize ) );
-			auto dicompath = std::filesystem::path ( seriesfiles[0] );
-			nifti_set_filenames ( supersuper::header, dicompath.replace_extension ( "nii.gz" ).c_str (), 0, 0 );
-
-			// set dimensions and spacings
-			supersuper::header->dim[0] = superhyper::sizes.size ();
-			supersuper::header->pixdim[0] = superhyper::sizes.size ();
-			if ( supersuper::header->dim[0] ) {
-				supersuper::header->dim[1] = superhyper::sizes[0];
-				supersuper::header->pixdim[1] = voxsize[0];
-				if ( supersuper::header->dim[0] > 1 ) {
-				supersuper::header->dim[2] = superhyper::sizes[1];
-				supersuper::header->pixdim[2] = voxsize[1];
-				if ( supersuper::header->dim[0] > 2 ) {
-					supersuper::header->dim[3] = superhyper::sizes[2];
-					supersuper::header->pixdim[3] = voxsize[2];
-					if ( supersuper::header->dim[0] > 3 ) {
-					supersuper::header->dim[4] = superhyper::sizes[3];
-					supersuper::header->pixdim[4] = float ( superclass::sidecar["RepetitionTime"] );
-					// never encountered 5D but you can go on of course
-					} // if >3
-				}     // if >2
-				}         // if >1
-			}             // if >0
-
-			// get rescale slope and intercept - first try DCM_RescaleSlope/Intercept
-			//        and if that does not work try DCM_RealWorldValueSlope/Intercept
-			supersuper::header->scl_slope = getItemDouble ( tmpdata, DCM_RescaleSlope );
-			if ( supersuper::header->scl_slope )
-				supersuper::header->scl_slope = getItemDouble ( tmpdata, DCM_RescaleIntercept );
-			else {
-				supersuper::header->scl_slope = getItemDouble ( tmpdata, DCM_RealWorldValueSlope );
-				supersuper::header->scl_inter = getItemDouble ( tmpdata, DCM_RealWorldValueIntercept );
-			} // if scl_slope
-
-			// set cal_min and cal_max as highest and lowest nonzero values
-			auto ordered_nonzero = std::vector<value_type> ( 0 );
-			for ( auto intensity = superhyper::data.begin (); intensity != superhyper::data.end (); intensity++ )
-				if ( *intensity != 0 ) ordered_nonzero.push_back ( *intensity );
-			std::sort ( ordered_nonzero.begin (), ordered_nonzero.end () );
-			supersuper::header->cal_min = float ( ordered_nonzero.front () );
-			supersuper::header->cal_max = float ( ordered_nonzero.back () );
-			ordered_nonzero.resize ( 0 ); // does that clear the memory?
-
-			// assume mm as vox units, s as time units
-			supersuper::header->xyz_units = NIFTI_UNITS_MM;
-			supersuper::header->time_units =
-				( float ( superclass::sidecar["RepetitionTime"] ) ) < 3600 ? NIFTI_UNITS_SEC : NIFTI_UNITS_MSEC;
-
-			// set slice, phase and frequency encoding directions
-			// supersuper::header -> dim_info   = FPS_INTO_DIM_INFO ( sidecar [ "FrequencyEncodingDimension" ],
-			// sidecar [ "PhaseEncodingDimension" ], sidecar [ "SlicesDimension" ] );
-			supersuper::header->freq_dim = int ( superclass::sidecar["FrequencyEncodingDimension"] ) + 1;
-			supersuper::header->phase_dim = int ( superclass::sidecar["PhaseEncodingDimension"] ) + 1;
-			supersuper::header->slice_dim = int ( superclass::sidecar["SlicesDimension"] ) + 1;
-
-			// set Qform in NIfTI header ( mat44 is an internal nifti data type )
-			mat44 m;
-			m.m[0][0] = Rnii[0][0];
-			m.m[0][1] = Rnii[0][1];
-			m.m[0][2] = Rnii[0][2];
-			m.m[0][3] = Rnii[0][3];
-			m.m[1][0] = Rnii[1][0];
-			m.m[1][1] = Rnii[1][1];
-			m.m[1][2] = Rnii[1][2];
-			m.m[1][3] = Rnii[1][3];
-			m.m[2][0] = Rnii[2][0];
-			m.m[2][1] = Rnii[2][1];
-			m.m[2][2] = Rnii[2][2];
-			m.m[2][3] = Rnii[2][3];
-			m.m[3][0] = Rnii[3][0];
-			m.m[3][1] = Rnii[3][1];
-			m.m[3][2] = Rnii[3][2];
-			m.m[3][3] = Rnii[3][3];
-
-			std::cout << "q-form matrix:" << std::endl;
-			std::cout << m.m[0][0] << " " << m.m[0][1] << " " << m.m[0][2] << " " << m.m[0][3] << " " << std::endl;
-			std::cout << m.m[1][0] << " " << m.m[1][1] << " " << m.m[1][2] << " " << m.m[1][3] << " " << std::endl;
-			std::cout << m.m[2][0] << " " << m.m[2][1] << " " << m.m[2][2] << " " << m.m[2][3] << " " << std::endl;
-			std::cout << m.m[3][0] << " " << m.m[3][1] << " " << m.m[3][2] << " " << m.m[3][3] << " " << std::endl;
-
-			float qb, qc, qd, qx, qy, qz, dx, dy, dz, qfac = 1;
-			nifti_mat44_to_quatern ( m, &qb, &qc, &qd, &qx, &qy, &qz, &dx, &dy, &dz, &qfac );
-			supersuper::header->qform_code = NIFTI_XFORM_SCANNER_ANAT;
-			supersuper::header->quatern_b = qb;
-			supersuper::header->quatern_c = qc;
-			supersuper::header->quatern_d = qd;
-			supersuper::header->qoffset_x = qx;
-			supersuper::header->qoffset_y = qy;
-			supersuper::header->qoffset_z = qz;
-			supersuper::header->pixdim[0] = supersuper::header->qfac =
-				superclass::sidecar["Slicedirection"]; // see nifti1.h
-
-			supersuper::header->sform_code = NIFTI_XFORM_SCANNER_ANAT;
-			supersuper::header->sto_xyz.m[0][0] = Rnii[0][0];
-			supersuper::header->sto_xyz.m[0][1] = Rnii[0][1];
-			supersuper::header->sto_xyz.m[0][2] = Rnii[0][2];
-			supersuper::header->sto_xyz.m[0][3] = Rnii[0][3];
-			supersuper::header->sto_xyz.m[1][0] = Rnii[1][0];
-			supersuper::header->sto_xyz.m[1][1] = Rnii[1][1];
-			supersuper::header->sto_xyz.m[1][2] = Rnii[1][2];
-			supersuper::header->sto_xyz.m[1][3] = Rnii[1][3];
-			supersuper::header->sto_xyz.m[2][0] = Rnii[2][0];
-			supersuper::header->sto_xyz.m[2][1] = Rnii[2][1];
-			supersuper::header->sto_xyz.m[2][2] = Rnii[2][2];
-			supersuper::header->sto_xyz.m[2][3] = Rnii[2][3];
-			supersuper::header->sto_xyz.m[3][0] = Rnii[3][0];
-			supersuper::header->sto_xyz.m[3][1] = Rnii[3][1];
-			supersuper::header->sto_xyz.m[3][2] = Rnii[3][2];
-			supersuper::header->sto_xyz.m[3][3] = Rnii[3][3];
-
-			// check the header
-			nifti_update_dims_from_array ( supersuper::header );
-
-			//
-			// complete the JSON sidecar and write
-			//
-			superclass::sidecar["TotalAcquiredPairs"] =
-				im_size[3] / int ( superclass::sidecar["NumberOfTemporalPositions"] );
+			get_metadata ( seriesfiles );
 
 		} // series UID not empty
 
@@ -434,10 +238,12 @@ void write ( std::string filename = "" )
 {
 
     superclass::write ( filename );
+
 }
 
-
 }; // class bisdicom
+
+
 
 /** \brief getSeriesFileData: 	given a directory name and series instance UID
  *								return the file datawhere all files are found
@@ -593,7 +399,7 @@ std::vector<filestats> bisdicom<value_type>::get_seriesfiledata ( std::string di
  *
  */
 template <class value_type>
-std::vector<std::string> bisdicom<value_type>::get_intensitydata ( std::vector<filestats> series_filedata ) {
+std::vector<std::string> bisdicom<value_type>::get_intensitydata ( std::vector<filestats>& series_filedata ) {
 	
 	auto num_files = series_filedata.size(); // numer of correct files with correct UID
 
@@ -684,6 +490,209 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata ( std::vector<f
 	getDicomData ( seriesfiles, superhyper::data.size (), superhyper::getdata_ptr () );
 
 	return ( seriesfiles );
+
+}
+
+
+
+/** \brief get_metadata: 	given a std::vector of filenames (see above)
+ *							use the values in the headers of these files to 
+ * 							complete the JSON sidecar and the NIfTI header.
+ */
+template <class value_type>
+void bisdicom<value_type>::get_metadata ( std::vector<std::string>& series_files ) {
+
+	// the locals
+	DcmFileFormat 
+		tmpfile;
+	vec3<float> 
+		sli_0_pos, sli_n_pos;
+	auto 
+		sli = unsigned ( superclass::sidecar [ "Slices" ] ) - 1;
+
+	// get the slice position from volume 0 slice 0
+	tmpfile.loadFile ( series_files[0].c_str () );
+	DcmDataset* tmpdata = tmpfile.getDataset ();
+	sli_0_pos[0] = static_cast<float> (
+		std::stof ( std::string ( getItemString ( tmpdata, DCM_ImagePositionPatient, 0 ).c_str () ) ) );
+	sli_0_pos[1] = static_cast<float> (
+		std::stof ( std::string ( getItemString ( tmpdata, DCM_ImagePositionPatient, 1 ).c_str () ) ) );
+	sli_0_pos[2] = static_cast<float> (
+		std::stof ( std::string ( getItemString ( tmpdata, DCM_ImagePositionPatient, 2 ).c_str () ) ) );
+
+	// get the slice position from volume 0 slice N
+	tmpfile.loadFile ( series_files[sli].c_str () );
+	tmpdata = tmpfile.getDataset ();
+	sli_n_pos[0] = static_cast<float> (
+		std::stof ( std::string ( getItemString ( tmpdata, DCM_ImagePositionPatient, 0 ).c_str () ) ) );
+	sli_n_pos[1] = static_cast<float> (
+		std::stof ( std::string ( getItemString ( tmpdata, DCM_ImagePositionPatient, 1 ).c_str () ) ) );
+	sli_n_pos[2] = static_cast<float> (
+		std::stof ( std::string ( getItemString ( tmpdata, DCM_ImagePositionPatient, 2 ).c_str () ) ) );
+
+	// Dicom voxel to mm transform
+	mat4<float> Rdcm ( slice_orx[0] * voxsize[0], slice_ory[0] * voxsize[1], ( sli_n_pos[0] - sli_0_pos[0] ) / sli, sli_0_pos[0], 
+					   slice_orx[1] * voxsize[0], slice_ory[1] * voxsize[1], ( sli_n_pos[1] - sli_0_pos[1] ) / sli, sli_0_pos[1],
+					   slice_orx[2] * voxsize[0], slice_ory[2] * voxsize[1], ( sli_n_pos[2] - sli_0_pos[2] ) / sli, sli_0_pos[2], 
+					   0, 0, 0, 1 );
+
+	// NIfTI voxel to mm transform
+	mat4<float> Rnii ( -Rdcm[0][0], -Rdcm[0][1], -Rdcm[0][2], -Rdcm[0][3], 
+					   -Rdcm[1][0], -Rdcm[1][1], -Rdcm[1][2], -Rdcm[1][3], 
+						Rdcm[2][0],  Rdcm[2][1],  Rdcm[2][2],  Rdcm[2][3], 
+						0, 0, 0, 1 );
+
+	// usually (if slices go top -> bottom) we want to flip the Y axis
+	//                  (dicom: positive is RL, nifti: positive is LR)
+	// see https://github.com/rordenlab/dcm2niix/blob/master/console/nii_dicom.cpp#L2659
+	if ( superclass::sidecar["Slicedirection"] < 0 ) {
+
+		Rnii[0][1] *= -1; //
+		Rnii[1][1] *= -1; // flip the 2nd (y) column of Rnii
+		Rnii[2][1] *= -1; //
+
+		vec4<float> yflip_ori ( 0, im_size[1] - 1, 0, 0 ); // yflip_ori: vector of the new origin
+		yflip_ori = ( Rnii * yflip_ori );
+
+		Rnii[0][3] -= yflip_ori[0]; //
+		Rnii[1][3] -= yflip_ori[1]; // restore origin after flipping
+		Rnii[2][3] -= yflip_ori[2]; //
+
+		// and flip the voxels!
+		size_t st = superhyper::sizes[3], sz = superhyper::sizes[2], sy = superhyper::sizes[1],
+			   sx = superhyper::sizes[0], sy1 = sy - 1, sy2 = sy / 2;
+		for ( size_t t = 0; t < st; t++ )
+		for ( size_t k = 0; k < sz; k++ )
+			for ( size_t j = 0; j < sy2; j++ )
+			for ( size_t i = 0; i < sx; i++ )
+				std::swap<value_type> ( ( *this )[ { i,       j, k, t } ],
+										( *this )[ { i, sy1 - j, k, t } ] );
+
+	}; // if slicedirection
+
+	//
+	// populate the NIfTI header
+	//
+
+	// set the own (nifti type) header
+	supersuper::header = nifti_simple_init_nim ();
+	supersuper::header->datatype = getniitype<value_type> ();
+	nifti_datatype_sizes ( supersuper::header->datatype, &( supersuper::header->nbyper ),
+						   &( supersuper::header->swapsize ) );
+	auto dicompath = std::filesystem::path ( series_files[0] );
+	nifti_set_filenames ( supersuper::header, dicompath.replace_extension ( "nii.gz" ).c_str (), 0, 0 );
+
+	// set dimensions and spacings
+	supersuper::header->dim[0] = superhyper::sizes.size ();
+	supersuper::header->pixdim[0] = superhyper::sizes.size ();
+	if ( supersuper::header->dim[0] ) {
+		supersuper::header->dim[1] = superhyper::sizes[0];
+		supersuper::header->pixdim[1] = voxsize[0];
+		if ( supersuper::header->dim[0] > 1 ) {
+		supersuper::header->dim[2] = superhyper::sizes[1];
+		supersuper::header->pixdim[2] = voxsize[1];
+		if ( supersuper::header->dim[0] > 2 ) {
+			supersuper::header->dim[3] = superhyper::sizes[2];
+			supersuper::header->pixdim[3] = voxsize[2];
+			if ( supersuper::header->dim[0] > 3 ) {
+			supersuper::header->dim[4] = superhyper::sizes[3];
+			supersuper::header->pixdim[4] = float ( superclass::sidecar["RepetitionTime"] );
+			// never encountered 5D but you can go on of course
+			}	// if >3
+		}     	// if >2
+		}		// if >1
+	}			// if >0
+
+	// get rescale slope and intercept - first try DCM_RescaleSlope/Intercept
+	//        and if that does not work try DCM_RealWorldValueSlope/Intercept
+	supersuper::header->scl_slope = getItemDouble ( tmpdata, DCM_RescaleSlope );
+	if ( supersuper::header->scl_slope )
+		supersuper::header->scl_slope = getItemDouble ( tmpdata, DCM_RescaleIntercept );
+	else {
+		supersuper::header->scl_slope = getItemDouble ( tmpdata, DCM_RealWorldValueSlope );
+		supersuper::header->scl_inter = getItemDouble ( tmpdata, DCM_RealWorldValueIntercept );
+	} // if scl_slope
+
+	// set cal_min and cal_max as highest and lowest nonzero values
+	auto ordered_nonzero = std::vector<value_type> ( 0 );
+	for ( auto intensity = superhyper::data.begin (); intensity != superhyper::data.end (); intensity++ )
+		if ( *intensity != 0 ) ordered_nonzero.push_back ( *intensity );
+	std::sort ( ordered_nonzero.begin (), ordered_nonzero.end () );
+	supersuper::header->cal_min = float ( ordered_nonzero.front () );
+	supersuper::header->cal_max = float ( ordered_nonzero.back () );
+	ordered_nonzero.resize ( 0 ); // does that clear the memory?
+
+	// assume mm as vox units, s as time units
+	supersuper::header->xyz_units = NIFTI_UNITS_MM;
+	supersuper::header->time_units =
+		( float ( superclass::sidecar["RepetitionTime"] ) ) < 3600 ? NIFTI_UNITS_SEC : NIFTI_UNITS_MSEC;
+
+	// set slice, phase and frequency encoding directions
+	// supersuper::header -> dim_info   = FPS_INTO_DIM_INFO ( sidecar [ "FrequencyEncodingDimension" ],
+	// sidecar [ "PhaseEncodingDimension" ], sidecar [ "SlicesDimension" ] );
+	supersuper::header->freq_dim	= int ( superclass::sidecar["FrequencyEncodingDimension"] ) + 1;
+	supersuper::header->phase_dim	= int ( superclass::sidecar["PhaseEncodingDimension"] ) + 1;
+	supersuper::header->slice_dim	= int ( superclass::sidecar["SlicesDimension"] ) + 1;
+
+	// The S-form can handle more transforms than the Qform, 
+	// so we copy the Q-form to the S-form (not vice versa)
+	//
+	// we need some data from vol 0 slice 0, and vol 0 slice n-1, to get qform
+	// see https://discovery.ucl.ac.uk/id/eprint/1495621
+
+	// set Qform in NIfTI header ( mat44 is an internal nifti data type )
+	mat44 m;
+	m.m[0][0] = Rnii[0][0];		m.m[0][1] = Rnii[0][1];		m.m[0][2] = Rnii[0][2];		m.m[0][3] = Rnii[0][3];
+	m.m[1][0] = Rnii[1][0];		m.m[1][1] = Rnii[1][1];		m.m[1][2] = Rnii[1][2];		m.m[1][3] = Rnii[1][3];
+	m.m[2][0] = Rnii[2][0];		m.m[2][1] = Rnii[2][1];		m.m[2][2] = Rnii[2][2];		m.m[2][3] = Rnii[2][3];
+	m.m[3][0] = Rnii[3][0];		m.m[3][1] = Rnii[3][1];		m.m[3][2] = Rnii[3][2];		m.m[3][3] = Rnii[3][3];
+
+	std::cout << "q-form matrix:" << std::endl;
+	std::cout << m.m[0][0] << " " << m.m[0][1] << " " << m.m[0][2] << " " << m.m[0][3] << " " << std::endl;
+	std::cout << m.m[1][0] << " " << m.m[1][1] << " " << m.m[1][2] << " " << m.m[1][3] << " " << std::endl;
+	std::cout << m.m[2][0] << " " << m.m[2][1] << " " << m.m[2][2] << " " << m.m[2][3] << " " << std::endl;
+	std::cout << m.m[3][0] << " " << m.m[3][1] << " " << m.m[3][2] << " " << m.m[3][3] << " " << std::endl;
+
+	float qb, qc, qd, qx, qy, qz, dx, dy, dz, qfac = 1;
+	nifti_mat44_to_quatern ( m, &qb, &qc, &qd, &qx, &qy, &qz, &dx, &dy, &dz, &qfac );
+	supersuper::header->qform_code = NIFTI_XFORM_SCANNER_ANAT;
+	supersuper::header->quatern_b = qb;
+	supersuper::header->quatern_c = qc;
+	supersuper::header->quatern_d = qd;
+	supersuper::header->qoffset_x = qx;
+	supersuper::header->qoffset_y = qy;
+	supersuper::header->qoffset_z = qz;
+	supersuper::header->pixdim[0] = supersuper::header->qfac =
+		superclass::sidecar["Slicedirection"]; // see nifti1.h
+
+	supersuper::header->sform_code = NIFTI_XFORM_SCANNER_ANAT;
+	supersuper::header->sto_xyz.m[0][0] = Rnii[0][0];
+	supersuper::header->sto_xyz.m[0][1] = Rnii[0][1];
+	supersuper::header->sto_xyz.m[0][2] = Rnii[0][2];
+	supersuper::header->sto_xyz.m[0][3] = Rnii[0][3];
+	supersuper::header->sto_xyz.m[1][0] = Rnii[1][0];
+	supersuper::header->sto_xyz.m[1][1] = Rnii[1][1];
+	supersuper::header->sto_xyz.m[1][2] = Rnii[1][2];
+	supersuper::header->sto_xyz.m[1][3] = Rnii[1][3];
+	supersuper::header->sto_xyz.m[2][0] = Rnii[2][0];
+	supersuper::header->sto_xyz.m[2][1] = Rnii[2][1];
+	supersuper::header->sto_xyz.m[2][2] = Rnii[2][2];
+	supersuper::header->sto_xyz.m[2][3] = Rnii[2][3];
+	supersuper::header->sto_xyz.m[3][0] = Rnii[3][0];
+	supersuper::header->sto_xyz.m[3][1] = Rnii[3][1];
+	supersuper::header->sto_xyz.m[3][2] = Rnii[3][2];
+	supersuper::header->sto_xyz.m[3][3] = Rnii[3][3];
+
+	// check the header
+	nifti_update_dims_from_array ( supersuper::header );
+
+	//
+	// complete the JSON sidecar and write
+	//
+	superclass::sidecar["TotalAcquiredPairs"] =
+		im_size[3] / int ( superclass::sidecar["NumberOfTemporalPositions"] );
+
+	return;
 
 }
 

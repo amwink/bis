@@ -3,9 +3,13 @@
 
 #include <regex>
 
+
+
 /** \brief bisbidsimage is a subclass of bisniftiimage
  */
 #include "bisniftiimage.hpp"
+
+
 
 /** \brief DICOM headers may contain BIDS data fields that
  *         cannot be stored in NIfTI headers; these are
@@ -13,18 +17,6 @@
  */
 #include "nlohmann/json.hpp"
 using json = nlohmann::json;
-
-
-
-std::string sidecarname ( std::string niftifile ) {
-	
-	std::string 
-		jsonfname = std::regex_replace ( niftifile, std::regex ( ".nii.gz" ), ".json" );  // replace .nii.gz for compressed files
-	jsonfname = std::regex_replace ( jsonfname,  std::regex ( ".nii" ),    ".json" );     //   in case it wasn't compressed
-	
-	return ( jsonfname );
-	
-}
 
 
 
@@ -36,6 +28,18 @@ std::string sidecarname ( std::string niftifile ) {
 
 namespace bis {
 		
+	std::string sidecarname ( std::string niftifile ) {
+	
+		std::string 
+			jsonfname = std::regex_replace ( niftifile, std::regex ( ".nii.gz" ), ".json" );  // replace .nii.gz for compressed files
+		jsonfname = std::regex_replace ( jsonfname,  std::regex ( ".nii" ),    ".json" );     //   in case it wasn't compressed
+	
+		return ( jsonfname );
+	
+	}
+	
+	
+	
     template <typename value_type>
 
     class bisbids : public bisnifti<value_type> {
@@ -80,13 +84,14 @@ namespace bis {
 
 			// overloaded function from bisnifti
 			void write ( std::string filename = "" ) {
-				
+
 				superclass::write ( filename );
 				std::ofstream jfile ( sidecarname ( filename ) );
 				jfile << std::setw ( 4 ) << sidecar << std::endl;
-				
+
 			}
-				
+
+
 
     }; // class bisbids
 
