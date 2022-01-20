@@ -128,7 +128,7 @@ class vecN {
 						   if (S>2) data[2] = z; 
 						   if (S>3) data[3] = t; }										// constructor from 4 scalars
 
-        vecN ( T* xyz             ): data ( S )
+		vecN ( T* xyz             ): data ( S )
             { std::copy_n (xyz, S, data.begin() ); }									// constructor from pointer
 
 		vecN ( std::initializer_list<T> l ): data ( S )
@@ -562,6 +562,8 @@ class matN {
 	//      It diagonalises the matrix, so that the values on the diagonal
 	//		are eigenvalues. The required rotations can also be applied to
 	//		an identity matrix, to yield the corresponding eigenvectors. 	
+	// 
+	// based on https://github.com/jewettaij/jacobi_pd
 	ev<T,S> diagonalise_sym ( 	bool vectors = true, 			// set to false for eigenvalues only
 								unsigned max_iter = 100000 ) {	// decrease to escape slow convergence
 		
