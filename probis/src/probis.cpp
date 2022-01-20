@@ -84,13 +84,13 @@ int main ( int argc, char* argv[] )
     std::cout << "hello from canabis! \n";
 
     auto 
-        do_2d      = false,  // test 2D vectors & matrices
-        do_3d      = false,  // test 3D vectors & matrices ( only tested if do_2d )
-        do_4d      = false,  // test 3D vectors & matrices ( only tested if do_3d )    
-        do_nifti   = true,  // test nifti file interactions
-        do_dicom   = true,  // test dicom import
-        do_reduce  = false, // test dimensionality reducer 
-		do_maxtree = false; // test maxtree
+        do_2d      = true,	// test 2D vectors & matrices
+        do_3d      = true,	// test 3D vectors & matrices ( only tested if do_2d )
+        do_4d      = true,	// test 3D vectors & matrices ( only tested if do_3d )    
+        do_nifti   = false,	// test nifti file interactions
+        do_dicom   = false,	// test dicom import
+        do_reduce  = false,	// test dimensionality reducer 
+		do_maxtree = false;	// test maxtree
 
     ////////////////////////////////////////
     // 1.
@@ -98,69 +98,90 @@ int main ( int argc, char* argv[] )
     // Test vectors and matrices
     //
 
-
-
     float  
         v[2] = { 10, 20 };
     double 
-        m[4] = { 1, -1, 0, 1 };
+        m[4] = { 1, 2, 2, 1 };
+        // m[4] = { 1, -2, -2, 3 };
     vec2<float>  
         v2_1 ( v );
     mat2<double> 
         m2_1 ( m );
 
-    if(do_2d) {
+if ( do_2d || do_3d || do_4d ) {
 
-        // vectors
-        
-        std::cout << "2D\nvector v2_1: \t";
-        std::cout << v2_1 << "\n";
+		if ( do_2d ) {
+			
+			// vectors        
+			std::cout << "2D\nvector v2_1: \t";
+			std::cout << v2_1 << "\n";
 
-        auto v2_2 ( v2_1 );
-        v2_2 += 1.;
+			auto v2_2 ( v2_1 );
+			v2_2 += 1.;
 
-        std::cout << "vector v2_2: \t" << v2_2 << " \n";
-        std::cout << "v2_2 + 2 v2_1: \t" << v2_2 + v2_1 * float(2.) << " \n";
-        
-        // matrices
-        
-        std::cout << "matrix m2_1: \n" << m2_1 << " \n";
-        std::cout << "inverse m2_1: \n" << m2_1.inverse() << " \n";
-        
-        auto m2_2 ( m2_1 + m2_1 );
-        m2_2 [0][1] = -1;
+			std::cout << "vector v2_2: \t" << v2_2 << " \n";
+			std::cout << "v2_2 + 2 v2_1: \t" << v2_2 + v2_1 * float(2.) << " \n";
+			
+			// matrices			
+			std::cout << "matrix m2_1: \n" << m2_1 << " \n";
+			std::cout << "inverse m2_1: \n" << m2_1.inverse() << " \n";
+			
+			auto e2_1 = m2_1.diagonalise_sym();
+			std::cout << "eigenvalues and -vectors\n";
+			std::cout << "values\n"  << e2_1.v << "\n";
+			std::cout << "vectors\n" << e2_1.m << "\n";
+			
+			auto m2_2 (m2_1);
+			m2_2 *= -1;
+			m2_2[0][0] = m2_1[0][0];
+			m2_2[1][1] += 4;
 
-        std::cout << "matrix m2_2: \n" << m2_2 << " \n";
-        std::cout << "inverse m2_2: \n" << m2_2.inverse() << " \n";
-            
-        if(do_3d) {
+			std::cout << "matrix m2_2: \n" << m2_2 << " \n";
+			std::cout << "inverse m2_2: \n" << m2_2.inverse() << " \n";			
+			auto e2_2 = m2_2.diagonalise_sym();
+			std::cout << "eigenvalues and -vectors\n";
+			std::cout << "values\n"  << e2_2.v << "\n";
+			std::cout << "vectors\n" << e2_2.m << "\n";
+									
+		}
+		
+        if( do_3d || do_4d ) {
 
             // vectors
             vec3<float> v3_1(v2_1);
             v3_1[2] = 30;
 
-            std::cout << "3D\nvector v3_1: \t";
-            std::cout << v3_1 << " \n";
+			if (do_3d) {
 
-            auto v3_2(v3_1);
-            v3_2 += 1.;
-            std::cout << "vector v3_2: \t" << v3_2 << " \n";
-            std::cout << "v3_2 + 2 v3_1: \t" << v3_2 + v3_1 * float(2.) << " \n";
-    
-            // matrices
-            mat3<double> 
-                m3_1 ( { 1, 0, -1, 0, 1, 0, 0, 0, 1 } );
-     
-            std::cout << "matrix m3_1: \n" << m3_1 << " \n";
-            std::cout << "inverse m3_1: \n" << m3_1.inverse() << " \n";
-            
-            auto m3_2 ( m3_1 + m3_1 );
-            m3_2 [0][2] = -1;
+				std::cout << "3D\nvector v3_1: \t";
+				std::cout << v3_1 << " \n";
 
-            std::cout << "matrix m3_2: \n" << m3_2 << " \n";
-            std::cout << "inverse m3_2: \n" << m3_2.inverse() << " \n";
+				auto v3_2(v3_1);
+				v3_2 += 1.;
+				std::cout << "vector v3_2: \t" << v3_2 << " \n";
+				std::cout << "v3_2 + 2 v3_1: \t" << v3_2 + v3_1 * float(2.) << " \n";
+		
+				// matrices
+				mat3<double> 
+					m3_1 ( { 1, 1, 0, 1, 1, 0, 0, 0, 1 } );
+		 
+				std::cout << "matrix m3_1: \n" << m3_1 << " \n";
+				std::cout << "inverse m3_1: \n" << m3_1.inverse() << " \n";
+				
+				auto e3_1 = m3_1.diagonalise_sym();
+				std::cout << "eigenvalues and -vectors\n";
+				std::cout << "vectors\n" << e3_1.v << "\n";
+				std::cout << "vectors\n" << e3_1.m << "\n";
+			
+				auto m3_2 ( m3_1 + m3_1 );
+				m3_2 [0][2] = -1;
+
+				std::cout << "matrix m3_2: \n" << m3_2 << " \n";
+				std::cout << "inverse m3_2: \n" << m3_2.inverse() << " \n";
+
+			}
         
-            if(do_4d) {
+            if ( do_4d ) {
 
                 // vectors
                 vec4<float> v4_1(v3_1);
@@ -184,11 +205,20 @@ int main ( int argc, char* argv[] )
                 std::cout << "matrix m4_1: \n" << m4_1 << " \n";
                 std::cout << "inverse m4_1: \n" << m4_1.inverse() << " \n";
             
-                auto m4_2 ( 2.  * m4_1 );
-                m4_2 [0][3] = -1;
+				// auto m4_2 ( m4_1 );
+                mat4<double> 
+                    m4_2 ( { 1,  0,  2,  1, 
+                             0,  2,  0,  2, 
+                             2,  0,  3,  0, 
+                             1,  2,  0,  4  } );
 
                 std::cout << "matrix m4_2: \n" << m4_2 << " \n";
                 std::cout << "inverse m4_2: \n" << m4_2.inverse() << " \n";
+				
+				auto e4_2 = m4_2.diagonalise_sym();
+				std::cout << "eigenvalues and -vectors\n";
+				std::cout << "values\n"  << e4_2.v << "\n";
+				std::cout << "vectors\n" << e4_2.m << "\n";
 
             } // if do_4d
 
@@ -327,7 +357,7 @@ int main ( int argc, char* argv[] )
 			mri_data ( mri_name, bis::DO_READ_DATA );						// load as nifti image
         std::cout << "building maxtree ..." << std::endl;
         bismaxtree<unsigned short> mri_mt (	mri_data,						// image of which to build the maxtree
-											16,								// number of levels ( test image: 4 )
+											8,								// number of levels ( test image: 4 )
 											2 * mri_data.getsize().size(),	// type of connectivity (4|8 for 2D, 6|26 for 3D)
 											"Berger" );						// method ( "Berger" works, hopefully will add others)
 
@@ -339,7 +369,7 @@ int main ( int argc, char* argv[] )
 
 		mri_mt.addattr ( "mass" );
 
-		auto cnum = 240;
+		auto cnum = 0;
         std::cout << "writing mask of component " << cnum << " and kids ..." << std::endl;	
 		auto 
 			mri_set = mri_mt.setpoints ( 1, 0, DO_SORT, DO_LEVEL );		// auto: output type setpoints() fixed

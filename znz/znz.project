@@ -13,23 +13,19 @@
   <VirtualDirectory Name="include">
     <File Name="include/znzlib.h"/>
   </VirtualDirectory>
-  <Dependencies Name="Debug">
-    <Project Name="z"/>
-  </Dependencies>
   <Dependencies Name="Release"/>
   <Settings Type="Dynamic Library">
     <GlobalSettings>
       <Compiler Options="-DHAVE_ZLIB; " C_Options="-DHAVE_ZLIB; " Assembler="">
         <IncludePath Value="."/>
         <IncludePath Value=".."/>
-        <IncludePath Value="$(WorkspacePath)/$(ProjectName)/include"/>
         <IncludePath Value="$(WorkspacePath)/z"/>
         <IncludePath Value="$(WorkspacePath)/znz/include"/>
       </Compiler>
       <Linker Options="-lz; ">
         <LibraryPath Value="."/>
         <LibraryPath Value=".."/>
-        <LibraryPath Value="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/output"/>
+        <LibraryPath Value="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/lib"/>
       </Linker>
       <ResourceCompiler Options=""/>
     </GlobalSettings>
@@ -39,7 +35,7 @@
       </Compiler>
       <Linker Options="" Required="yes"/>
       <ResourceCompiler Options="" Required="no"/>
-      <General OutputFile="" IntermediateDirectory="" Command="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/output/$(ProjectName)" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/output" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
+      <General OutputFile="lib$(ProjectName).so" IntermediateDirectory="" Command="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/lib/$(OutputFile)" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/lib" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
       <BuildSystem Name="CMake"/>
       <Environment EnvVarSetName="&lt;Use Defaults&gt;" DbgSetName="&lt;Use Defaults&gt;">
         <![CDATA[VERBOSE=1]]>
@@ -112,4 +108,5 @@
       </Completion>
     </Configuration>
   </Settings>
+  <Dependencies Name="Debug"/>
 </CodeLite_Project>

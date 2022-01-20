@@ -38,7 +38,6 @@
 #include <iomanip>
 #include <fstream>
 #include <iostream>
-#include <algorithm>
 #include <type_traits>
 #include <initializer_list>
 

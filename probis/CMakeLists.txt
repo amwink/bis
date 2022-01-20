@@ -12,7 +12,7 @@ set(CONFIGURATION_NAME "Debug")
 
 set(CL_WORKSPACE_DIRECTORY ..)
 # Set default locations
-set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/${CL_WORKSPACE_DIRECTORY}/cmake-build-${CONFIGURATION_NAME}/output)
+set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/${CL_WORKSPACE_DIRECTORY}/cmake-build-${CONFIGURATION_NAME}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
@@ -21,11 +21,6 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 
 
 # Top project
-## Add the dependencies
-add_subdirectory(${CMAKE_SOURCE_DIR}/../z ${CMAKE_CURRENT_BINARY_DIR}/z-build)
-add_subdirectory(${CMAKE_SOURCE_DIR}/../znz ${CMAKE_CURRENT_BINARY_DIR}/znz-build)
-add_subdirectory(${CMAKE_SOURCE_DIR}/../nifti ${CMAKE_CURRENT_BINARY_DIR}/nifti-build)
-add_subdirectory(${CMAKE_SOURCE_DIR}/../canabis ${CMAKE_CURRENT_BINARY_DIR}/canabis-build)
 # Define some variables
 set(PROJECT_probis_PATH "${CMAKE_CURRENT_LIST_DIR}")
 set(WORKSPACE_PATH "${CMAKE_CURRENT_LIST_DIR}/..")
@@ -79,7 +74,7 @@ endif(WIN32)
 link_directories(
     .
     ..
-    ${WORKSPACE_PATH}/cmake-build-${CONFIGURATION_NAME}/output
+    ${WORKSPACE_PATH}/cmake-build-${CONFIGURATION_NAME}/lib
 )
 
 # Define the CXX sources
@@ -106,12 +101,6 @@ endif(WIN32)
 add_executable(probis ${RC_SRCS} ${CXX_SRCS} ${C_SRCS})
 target_link_libraries(probis ${LINK_OPTIONS})
 
-
-# Adding dependencies
-add_dependencies(probis z)
-add_dependencies(probis znz)
-add_dependencies(probis nifti)
-add_dependencies(probis canabis)
 
 
 #{{{{ User Code 3

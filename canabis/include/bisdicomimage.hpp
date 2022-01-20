@@ -220,7 +220,8 @@ class bisdicom : public bisbids<value_type> {
 		auto seriesfiledata = get_seriesfiledata(dirname); // data for DICOM files that match
 
 		// use the file list to load the intensities in all the slices,
-		// according to the scan dimensions and directions (this order is given via a sorted file list)
+		// according to the scan dimensions and directions 
+		// (this order is given via a sorted file list)
 		auto seriesfiles = get_intensitydata(seriesfiledata);
 
 		// The voxel data are in now. For BIDS, all that is left are the JSON and the NIfTI header
@@ -398,10 +399,14 @@ template <class value_type> std::vector<filestats> bisdicom<value_type>::get_ser
 	// (see https://github.com/rordenlab/dcm2niix/tree/master/Philips), stable sort by SliceLocation.
 	// Stable sort respects previous ordering where possible.
 	if ( seriesfiledata[0].slipos == seriesfiledata[1].slipos ) {
-		float fac = ( seriesfiledata[0].slipos < seriesfiledata[added_files - 1].slipos ) ? 1 : -1;
+		char fac = ( seriesfiledata[0].slipos < seriesfiledata[added_files - 1].slipos ) ? 1 : -1;
 		std::stable_sort( begin(seriesfiledata), end(seriesfiledata),
-						  [&](auto const& t0, auto const& t1) { return (  (  (t0).innumber    <   (t1).innumber    ) ||
-						                                                  ( ((t0).sliloc*fac) <= ((t1).sliloc*fac) ) ); } );
+						  [&](auto const& t0, auto const& t1) { return ( fac*(t0).slipos < fac*(t1).slipos ) ; } );
+		auto lowest_innumber = seriesfiledata[0].innumber;
+		auto first_slipos = std::count_if ( begin(seriesfiledata), end(seriesfiledata), 
+											[&](auto const& fd0) { return ( (fd0).sliloc == seriesfiledata[0].sliloc ); } ) ;
+		std::stable_sort( begin(seriesfiledata), end(seriesfiledata),
+						  [&](auto const& t0, auto const& t1) { return ( ((t0).innumber-lowest_innumber)%first_slipos < ((t1).innumber-lowest_innumber)%first_slipos ); } );
 	}
 	
     auto diag = true;
@@ -411,7 +416,7 @@ template <class value_type> std::vector<filestats> bisdicom<value_type>::get_ser
 	for(auto filedata : seriesfiledata)
 	    std::cout << std::setprecision(6) 
 				  << filedata.filename << "\t" << filedata.innumber << "\t" << filedata.aqnumber << "\t"
-	              << filedata.aqtime << "\t" << filedata.slipos << "\t" << filedata.sliloc << std::endl;
+	              << filedata.aqtime   << "\t" << filedata.slipos   << "\t" << filedata.sliloc   << std::endl;
     }
 
     return (seriesfiledata);
@@ -427,12 +432,6 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<fil
 
     auto num_files = series_filedata.size(); // number of correct files with correct UID
 
-    // In the first volume, find the sign of the slice positioning: if the
-    // position of slice 1 is lower than slice 0 then -1, otherwise +1.
-    // THIS NEEDS TO CORRESPOND TO THE SLICE NORMAL for determining rotate 180 or flip
-    superclass::sidecar["Slicedirection"] =
-        static_cast<int>(bis::signum<float>(series_filedata[1].slipos - series_filedata[0].slipos));
-
     // Determine the #slices in a volume by checking
     // when the slice position is back at its initial value.
     unsigned sli = 1;
@@ -446,11 +445,19 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<fil
     // double check if this is still true at the end
     sli = num_files - 2;
     for(auto startpos = (series_filedata[num_files - 1]).slipos; sli > 0; sli--)
-	if((series_filedata[sli]).slipos == startpos)
+	if((series_filedata[sli]).slipos == startpos) { 
+		sli++;
 	    break;
+	}
     sli = num_files - sli; // counting from n-1 down to 0, ya gotta love it
 
     std::cout << "counted slices (counting backwards from end): " << sli << std::endl;
+
+    // In the first volume, find the sign of the slice positioning: if the
+    // position of slice 1 is lower than slice 0 then -1, otherwise +1.
+    // THIS NEEDS TO CORRESPOND TO THE SLICE NORMAL for determining rotate 180 or flip
+    superclass::sidecar["Slicedirection"] =
+        static_cast<int>(bis::signum<float>(series_filedata[1].slipos - series_filedata[0].slipos));
 
     // in the case of 2D files, #volumes = #files / (slices per volume)
     // TR of a volume = start time of volume 1 - start time of volume 0

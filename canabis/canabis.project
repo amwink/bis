@@ -11,6 +11,8 @@
     <File Name="src/bisimage.cpp"/>
   </VirtualDirectory>
   <VirtualDirectory Name="include">
+    <File Name="include/jacobi_pd.hpp"/>
+    <File Name="include/matrix_alloc_jpd.hpp"/>
     <File Name="include/bisbidsimage.hpp"/>
     <File Name="include/bismaxtree.hpp"/>
     <File Name="include/bisimage_types.hpp"/>
@@ -19,6 +21,7 @@
     <File Name="include/bisimage_maths.hpp"/>
     <File Name="include/bisdicomimage.hpp"/>
   </VirtualDirectory>
+  <Dependencies Name="Release"/>
   <Settings Type="Dynamic Library">
     <GlobalSettings>
       <Compiler Options="-std=gnu++2a;" C_Options="" Assembler="">
@@ -33,7 +36,7 @@
       <Linker Options="-lz; -lznz; -lnifti; ">
         <LibraryPath Value="."/>
         <LibraryPath Value=".."/>
-        <LibraryPath Value="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/output"/>
+        <LibraryPath Value="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/lib"/>
       </Linker>
       <ResourceCompiler Options=""/>
     </GlobalSettings>
@@ -43,7 +46,7 @@
       </Compiler>
       <Linker Options="" Required="yes"/>
       <ResourceCompiler Options="" Required="no"/>
-      <General OutputFile="" IntermediateDirectory="" Command="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/output/$(ProjectName)" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/output" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
+      <General OutputFile="lib$(ProjectName).so" IntermediateDirectory="" Command="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/lib/$(OutputFile)" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/lib" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
       <BuildSystem Name="CMake"/>
       <Environment EnvVarSetName="&lt;Use Defaults&gt;" DbgSetName="&lt;Use Defaults&gt;">
         <![CDATA[VERBOSE=1]]>
@@ -116,10 +119,5 @@
       </Completion>
     </Configuration>
   </Settings>
-  <Dependencies Name="Debug">
-    <Project Name="z"/>
-    <Project Name="znz"/>
-    <Project Name="nifti"/>
-  </Dependencies>
-  <Dependencies Name="Release"/>
+  <Dependencies Name="Debug"/>
 </CodeLite_Project>

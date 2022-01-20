@@ -21,9 +21,14 @@
 
 #include<vector>
 #include<cfloat>
+#include<ranges>
 #include<climits>
-#include<iostream>
 #include<cassert>
+#include<numeric>
+#include<iostream>
+#include<algorithm>
+
+#include "jacobi_pd.hpp"
 
 namespace bis {
 
@@ -51,324 +56,6 @@ T signum (T x) {
  * that handle 2D images.
  */
 
-
-
-// forward declarations
-template <class>
-class vec2;
-template <class>
-class mat2;
-
-
-
-/* 2-vector
- *
- * We define this mathematical object because it is often used in 2D scans
- */
-
-template <typename T>
-class vec2 {
-
-    template <typename U>
-    friend std::ostream& operator<<(std::ostream& out, const vec2<U>& v);
-
-    template <typename U>
-    friend std::istream& operator>>(std::istream& in, vec2<U>& v);
-
-    protected:
-        std::vector<T> data;
-
-    public:
-        vec2 (): data(2)
-            {};                                                               // default constructor
-
-        vec2 ( T x, T y ): data(2)
-            { data[0] = x; data[1] = y; }                                     // constructor from 2 scalars
-
-        vec2 ( T* xyz             ): data(2)
-            { std::copy (xyz, xyz+2, data.begin() ); }                        // constructor from pointer
-
-        vec2 ( const vec2<T>& rhs ): data(2)
-            { std::copy ( rhs.data.begin(), rhs.data.end(), data.begin() ); } // copy constructor
-
-    vec2<T> operator=( vec2<T> rhs ) {
-        std::copy( rhs.data.begin(), rhs.data.end(), data.begin() );          // assignment of vector
-        return (*this);
-    }
-
-    vec2<T> operator=( T rhs ) {
-        data = rhs;                                                           // assignment of scalar
-        return (*this);
-    }
-
-    // passing on the [] operator for accessing elements
-          T& operator[] ( size_t offset)       { return data[offset]; }       // write access
-    const T& operator[] ( size_t offset) const { return data[offset]; }       // read  access
-
-    // (in) equality
-    bool operator== (vec2& v) { return ( data[0]==v[0] && data[1]==v[1] ); }
-    bool operator!= (vec2& v) { return !( (*this) == v );                  }
-
-    // some vector computations
-    T norm() { return ( sqrt( (*this) & (*this) ) ); } // norm: square root of inner product
-    vec2<T> reciprocal ( const vec2& v ) const       { return vec2 ( 1 / data[0], 1 / data[1] );          }
-    
-    // return std::vector with coefficients
-    std::vector<T> getdata() { return data; }
-
-    // left += and + for elements and vectors
-    const vec2<T>& operator+= ( const T& rhs )       { data[0]+=rhs;    data[1]+=rhs;    return (*this);  }
-    template <typename U>
-    const vec2<T>& operator+= ( const vec2<U>& rhs ) { data[0]+=rhs[0]; data[1]+=rhs[1]; return (*this);  }
-    template <typename U>
-    const vec2<T> operator+   ( const U& rhs )       { vec2<T> out(*this); out += rhs; return out;        }
-
-    // left -= and - for elements and vectors
-    const vec2<T>& operator-= ( const T& rhs )       { data[0]-=rhs;    data[1]-=rhs;    return (*this);  }
-    template <typename U>
-    const vec2<T>& operator-= ( const vec2<U>& rhs ) { data[0]-=rhs[0]; data[1]-=rhs[1]; return (*this);  }
-    template <typename U>
-    const vec2<T> operator-   ( const U& rhs )       { vec2<T> out(*this); out -= rhs; return out;        }
-    const vec2<T> operator-   ( void )               { return vec2 ( -data[0], -data[1] );                }
-
-    // left *= and * for elements and vectors
-    const vec2<T>& operator*= ( const T& rhs )       { data[0]*=rhs;    data[1]*=rhs;    return (*this);  }
-    template <typename U>
-    const vec2<T>& operator*= ( const vec2<U>& rhs ) { data[0]*=rhs[0]; data[1]*=rhs[1]; return (*this);  }
-
-    // multiplication by scalar
-    const vec2<T> operator*   ( const T& rhs )       { vec2<T> out(*this); out *= rhs; return out;        }
-
-    // multiplication by vector
-    template <typename U>
-    const vec2<T> operator*   ( const vec2<U>& rhs ) { vec2<T> out(*this); out *= rhs; return out;        }
-
-    // multiplication by matrix (if v is a row vector)
-    template <typename U>
-    vec2<T> operator*( const mat2<U>& m ) const   { return vec2( data[0] * m[0][0] + data[1] * m[1][0],
-                                                                 data[0] * m[0][1] + data[1] * m[1][1] ); }
-
-    // left /= and / for elements and vectors
-    const vec2<T>& operator/= ( const T& rhs )       { data[0]/=rhs;    data[1]/=rhs;    return (*this);  }
-    template <typename U>
-    const vec2<T>& operator/= ( const vec2<U>& rhs ) { data[0]/=rhs[0]; data[1]/=rhs[1]; return (*this);  }
-    template <typename U>
-    const vec2<T> operator/   ( const U& rhs )       { vec2<T> out(*this); out /= rhs; return out;        }
-
-    // dot product (inner product in the more general case)
-    T operator& ( const vec2& v ) const { return v[0] * data[0] + v[1] * data[1]; }
-
-    // cross product (exterior/wedge product in other than 3D but mostly used in 3D as cross product)
-    vec2<T> operator^( const vec2& v ) const   { return vec2( data[0] * v[1] - data[1] * v[0] );   }
-
-};
-
-// non-members of vec2 for vec2
-
-template <typename U>
-std::ostream& operator<<(std::ostream& out, const vec2<U>& v)
-    { return out << '(' << v.data[0] << ',' << v.data[1] << ')'; }
-
-template <typename U>
-std::istream& operator>>(std::istream& in , vec2<U> &v)
-    { return in >> v.data[0] >> v.data[1]; }
-
-// right +, -, * and / operators
-template <typename T>
-inline vec2 <T> operator+ ( T x, vec2 <T> y) {
-    return y             + x;
-}
-template <typename T>
-inline vec2 <T> operator* ( T x, vec2 <T> y) {
-    return y             * x;
-}
-template <typename T>
-inline vec2 <T> operator- ( T x, vec2 <T> y) {
-    return -y            + x;
-}
-template <typename T>
-inline vec2 <T> operator/ ( T x, vec2 <T> y) {
-    return reciprocal(y) * x;
-}
-
-
-
-/* 2x2 matrix
- *
- * We define this mathematical object because it is often used in 2D image applications
- */
-
-template <typename T>
-class mat2 {
-
-    template <typename U>
-    friend std::ostream& operator<<(std::ostream& out, const mat2<U>& v);
-
-    template <typename U>
-    friend std::istream& operator>>(std::istream& in, mat2<U>& v);
-
-    protected:
-        std::vector<T> data;
-
-    public:
-        mat2 (               ): data(4)
-            {};                                                               // default constructor
-
-        mat2 ( T x0,   T y0,
-               T x1,   T y1  ): data(4)
-            { data[0] = x0; data[1] = y0;
-              data[2] = x1; data[3] = y1;               }                     // constructor from 4 scalars
-
-        mat2 ( T* xyz               ): data(4)
-            { std::copy (xyz, xyz+4, data.begin() ); }                        // constructor from pointer
-
-        mat2 ( const mat2<T>& rhs   ): data(4)
-            { std::copy ( rhs.data.begin(), rhs.data.end(), data.begin() ); } // copy constructor
-
-        mat2<T> operator=( mat2<T> rhs ) {
-            std::copy( rhs.data.begin(), rhs.data.end(), data.begin() );      // assignment
-            return (*this);
-        }
-
-    // passing on the [] operator for accessing 2D elements
-          T* operator[] (const size_t offset)       { return &data[2*offset]; }       // write access
-    const T* operator[] (const size_t offset) const { return &data[2*offset]; }       // read  access
-
-    // (in) equality
-    bool operator== (mat2& v) { return ( data[0]==v[0] && data[1]==v[1] && 
-                                         data[2]==v[2] && data[3]==v[3]  );                         }
-    bool operator!= (mat2& v) { return !( (*this) == v );                                           }
-
-    // some matrix computations
-    mat2<T> reciprocal ( const mat2& v ) const       { return mat2 ( 1 / data[0], 1 / data[1], 
-                                                                     1 / data[2], 1 / data[3]  );   }
-    const mat2<T> eye ( const T v = 1 ) const        { return mat2 ( 1, 0, 0,
-                                                                     0, 1, 0,
-                                                                     0, 0, 1 );                     }
-
-    // return std::vector with coefficients
-    std::vector<T> getdata() { return data; }
-
-    // left += and + for elements and vectors
-    const mat2<T>& operator+= ( const T& rhs )       { data[0]+=rhs;    data[1]+=rhs;    
-                                                       data[2]+=rhs;    data[3]+=rhs;
-                                                       return (*this);                              }
-    template <typename U>
-    const mat2<T>& operator+= ( const mat2<U>& rhs ) { data[0]+=rhs.data[0]; data[1]+=rhs.data[1]; 
-                                                       data[2]+=rhs.data[2]; data[3]+=rhs.data[3];
-                                                       return (*this);                              }
-    template <typename U>
-    const mat2<T> operator+   ( const U& rhs )       { mat2<T> out(*this); out += rhs; return out;  }
-
-    // left -= and - for elements and vectors
-    const mat2<T>& operator-= ( const T& rhs )       { data[0]-=rhs;    data[1]-=rhs;    
-                                                       data[2]-=rhs;    data[3]-=rhs;
-                                                       return (*this);                              }
-    template <typename U>
-    const mat2<T>& operator-= ( const mat2<U>& rhs ) { data[0]-=rhs[0]; data[1]-=rhs[1]; 
-                                                       data[2]-=rhs[2]; data[3]-=rhs[3];
-                                                       return (*this);                              }
-    template <typename U>
-    const mat2<T> operator-   ( const U& rhs )       { mat2<T> out(*this); out -= rhs; return out;  }
-    const mat2<T> operator-   ( void )               { return (*this) * -1;                         }
-
-    // matrix-matrix product (only for 2 mat2-sized inputs)
-    template <typename U>
-    mat2<T> operator*=( mat2<U>& m ) { mat2<T> m2( m.data[0] * data[0] + m.data[2] * data[1],
-                                                   m.data[1] * data[0] + m.data[3] * data[1],
-                                                   m.data[0] * data[2] + m.data[2] * data[3],
-                                                   m.data[1] * data[2] + m.data[3] * data[3]  );
-                                       (*this) = m2;
-                                       return (*this);                                              }
-
-    // left *= for elements
-    const mat2<T>& operator*= ( const T& rhs )       { data[0]*=rhs;    data[1]*=rhs;    
-                                                       data[2]*=rhs;    data[3]*=rhs;
-                                                       return (*this);                              }
-
-    // operator *
-    template <typename U>
-    const mat2<T> operator*   ( mat2<U>& rhs )       { mat2<T> out(*this); out *= rhs; return out;  }
-    const mat2<T> operator*   ( const T& rhs )       { mat2<T> out(*this); out *= rhs; return out;  }
-
-    // hadamard product (element-wise multiplication)
-    template <typename U>
-    const mat2<T>& hadamard ( const mat2<U>& rhs ) { data[0]/=rhs.data[0]; data[1]/=rhs.data[1]; 
-                                                     data[2]/=rhs.data[2]; data[3]/=rhs.data[3];
-                                                     return (*this);                                }
-
-    // left /= and / for elements and vectors
-    const mat2<T>& operator/= ( const T& rhs )       { data[0]/=rhs; data[1]/=rhs;
-                                                       data[2]/=rhs; data[3]/=rhs;
-                                                       return (*this);                              }
-    template <typename U>
-    const mat2<T>& operator/= ( const mat2<U>& rhs ) { data[0]/=rhs.data[0]; data[1]/=rhs.data[1]; 
-                                                       data[2]/=rhs.data[2]; data[3]/=rhs.data[3];
-                                                       return (*this);                              }
-    template <typename U>
-    const mat2<T> operator/   ( const U& rhs )       { mat2<T> out(*this); out /= rhs; return out;  }
-
-    // adjoint (adjugate) matrix -- required for inverse
-    mat2<T> adjoint( const T scale = 1 ) const    { return mat2(  scale * data[3],
-                                                                 -scale * data[1],
-                                                                 -scale * data[2],
-                                                                  scale * data[0]  );               }
-
-    // determinant
-    T determinant() const { return ( data[0] *  data[3] - data[1] * data[2] );                      }
-
-    // inverse
-    const mat2<T> inverse() {
-        T det = this->determinant();
-        if ( det > FLT_EPSILON || det < -FLT_EPSILON )
-            return ( this->adjoint ( 1 / det ) );
-        else
-            return (*this) * std::numeric_limits<T>::quiet_NaN();
-    }
-
-};
-
-// non-members of mat2 for mat2
-
-template <typename U>
-std::ostream& operator<<(std::ostream& out, const mat2<U>& m)
-    { return out << '(' << m.data[0] << ',' << m.data[1] << ',' << std::endl
-                 << ' ' << m.data[2] << ',' << m.data[3] << ')'; }
-
-template <typename U>
-std::istream& operator>>(std::istream& in , mat2<U> &m)
-    { return in >> m.data[0] >> m.data[1]
-                >> m.data[3] >> m.data[4]; }
-
-// right +, -, * and / operators
-template <typename T>
-inline mat2 <T> operator+ ( T x, mat2 <T> y) {
-    return y             + x;
-}
-template <typename T>
-inline mat2 <T> operator* ( T x, mat2 <T> y) {
-    return y             * x;
-}
-template <typename T>
-inline mat2 <T> operator- ( T x, mat2 <T> y) {
-    return -y            + x;
-}
-template <typename T>
-inline mat2 <T> operator/ ( T x, mat2 <T> y) {
-    return reciprocal(y) * x;
-}
-
-// matrix-vector product (vector is assumed to be a column vector)
-template <typename T, typename U>
-const vec2<T> operator* ( const mat2<U>& m, const vec2<T>& v ) { return vec2( v[0] * m[0][0] + v[1] * m[0][1],
-                                                                              v[0] * m[1][0] + v[1] * m[1][1]  ); }
-
-// hadamard product (element-wise multiplication)
-template <typename T, typename U>
-const mat2<T> hadamard ( const mat2<U>& m, const mat2<T>& n ) { return m.hadamard(n); }
-
-
-
 /* Vectors and matrices in 3 dimensions
  *
  * For manipulating 3-dimensional (3D) coordinates, 3D matrices and
@@ -377,361 +64,6 @@ const mat2<T> hadamard ( const mat2<U>& m, const mat2<T>& n ) { return m.hadamar
  * data at locations in these scans, it is important to optimise the
  * operations that handle 3D image space.
  */
-
-
-
-// forward declarations
-template <class>
-class vec3;
-template <class>
-class mat3;
-
-
-
-/* 3-vector
- *
- * We define this mathematical object because it is often used in 3D scans
- */
-
-template <typename T>
-class vec3 {
-
-    template <typename U>
-    friend std::ostream& operator<<(std::ostream& out, const vec3<U>& v);
-
-    template <typename U>
-    friend std::istream& operator>>(std::istream& in, vec3<U>& v);
-
-    protected:
-        std::vector<T> data;
-
-    public:
-        vec3 (                    ): data(3)
-            {};                                                               // default constructor
-
-        vec3 ( T x,   T y,   T z  ): data(3)
-            { data[0] = x; data[1] = y; data[2] = z; }                        // constructor from 3 scalars
-
-        vec3 ( T* xyz             ): data(3)
-            { std::copy (xyz, xyz+3, data.begin() ); }                        // constructor from pointer
-
-        vec3 ( const vec3<T>& rhs ): data(3)
-            { std::copy ( rhs.data.begin(), rhs.data.end(), data.begin() ); } // copy constructor
-            
-        vec3 ( const vec2<T>& rhs ): data(3)
-            { data[0] = rhs[0]; data[1]=rhs[1]; }                             // copy from vec2 (add a 0)
-
-    vec3<T> operator=( vec3<T> rhs ) {
-        std::copy( rhs.data.begin(), rhs.data.end(), data.begin() );          // assignment of vector
-        return (*this);
-    }
-
-    vec3<T> operator=( T rhs ) {
-        data = rhs;                                                           // assignment of scalar
-        return (*this);
-    }
-
-    // passing on the [] operator for accessing elements
-          T& operator[] ( size_t offset)       { return data[offset]; }       // write access
-    const T& operator[] ( size_t offset) const { return data[offset]; }       // read  access
-
-    // (in) equality
-    bool operator== (vec3& v) { return ( data[0]==v[0] && data[1]==v[1] && data[2]==v[2] ); }
-    bool operator!= (vec3& v) { return !( (*this) == v );                                   }
-
-    // some vector computations
-    T norm() { return ( sqrt( (*this) & (*this) ) ); } // norm: square root of inner product
-    vec3<T> reciprocal ( const vec3& v ) const       { return vec3 ( 1 / data[0], 1 / data[1], 1 / data[2] );             }
-
-    // return std::vector with coefficients
-    std::vector<T> getdata() { return data; }
-
-    // left += and + for elements and vectors
-    const vec3<T>& operator+= ( const T& rhs )       { data[0]+=rhs;    data[1]+=rhs;    data[2]+=rhs;    return (*this); }
-    template <typename U>
-    const vec3<T>& operator+= ( const vec3<U>& rhs ) { data[0]+=rhs[0]; data[1]+=rhs[1]; data[2]+=rhs[2]; return (*this); }
-    template <typename U>
-    const vec3<T> operator+   ( const U& rhs )       { vec3<T> out(*this); out += rhs; return out;                        }
-
-    // left -= and - for elements and vectors
-    const vec3<T>& operator-= ( const T& rhs )       { data[0]-=rhs;    data[1]-=rhs;    data[2]-=rhs;    return (*this); }
-    template <typename U>
-    const vec3<T>& operator-= ( const vec3<U>& rhs ) { data[0]-=rhs[0]; data[1]-=rhs[1]; data[2]-=rhs[2]; return (*this); }
-    template <typename U>
-    const vec3<T> operator-   ( const U& rhs )       { vec3<T> out(*this); out -= rhs; return out;                        }
-    const vec3<T> operator-   ( void )               { return vec3 ( -data[0], -data[1], -data[2] );                      }
-
-    // left *= and * for elements and vectors
-    const vec3<T>& operator*= ( const T& rhs )       { data[0]*=rhs;    data[1]*=rhs;    data[2]*=rhs;    return (*this); }
-    template <typename U>
-    const vec3<T>& operator*= ( const vec3<U>& rhs ) { data[0]*=rhs[0]; data[1]*=rhs[1]; data[2]*=rhs[2]; return (*this); }
-
-    // multiplication by scalar
-    const vec3<T> operator*   ( const T& rhs )       { vec3<T> out(*this); out *= rhs; return out;                        }
-
-    // multiplication by vector
-    template <typename U>
-    const vec3<T> operator*   ( const vec3<U>& rhs ) { vec3<T> out(*this); out *= rhs; return out;                        }
-
-    // multiplication by matrix (if v is a row vector)
-    template <typename U>
-    vec3<T> operator*( const mat3<U>& m ) const   { return vec3( data[0] * m[0][0] + data[1] * m[1][0] + data[2] * m[2][0],
-                                                                 data[0] * m[0][1] + data[1] * m[1][1] + data[2] * m[2][1],
-                                                                 data[0] * m[0][2] + data[1] * m[1][2] + data[2] * m[2][2] ); }
-
-    // left /= and / for elements and vectors
-    const vec3<T>& operator/= ( const T& rhs )       { data[0]/=rhs;    data[1]/=rhs;    data[2]/=rhs;    return (*this); }
-    template <typename U>
-    const vec3<T>& operator/= ( const vec3<U>& rhs ) { data[0]/=rhs[0]; data[1]/=rhs[1]; data[2]/=rhs[2]; return (*this); }
-    template <typename U>
-    const vec3<T> operator/   ( const U& rhs )       { vec3<T> out(*this); out /= rhs; return out;                        }
-
-    // dot product (inner product in the more general case)
-    T operator& ( const vec3& v ) const { return v[0] * data[0] + v[1] * data[1] + v[2] * data[2]; }
-
-    // cross product (wedge product in other than 3D but mostly used in 3D as cross product)
-    vec3<T> operator^( const vec3& v ) const   { return vec3( data[1] * v[2] - data[2] * v[1],
-                                                              data[0] * v[2] - data[2] * v[0],
-                                                              data[0] * v[1] - data[1] * v[0] );   }
-
-};
-
-// non-members of vec3 for vec3
-
-template <typename U>
-std::ostream& operator<<(std::ostream& out, const vec3<U>& v)
-    { return out << '(' << v.data[0] << ',' << v.data[1] << ',' << v.data[2] <<')'; }
-
-template <typename U>
-std::istream& operator>>(std::istream& in , vec3<U> &v)
-    { return in >> v.data[0] >> v.data[1] >> v.data[2]; }
-
-// right +, -, * and / operators
-template <typename T>
-inline vec3 <T> operator+ ( T x, vec3 <T> y) {
-    return y             + x;
-}
-template <typename T>
-inline vec3 <T> operator* ( T x, vec3 <T> y) {
-    return y             * x;
-}
-template <typename T>
-inline vec3 <T> operator- ( T x, vec3 <T> y) {
-    return -y            + x;
-}
-template <typename T>
-inline vec3 <T> operator/ ( T x, vec3 <T> y) {
-    return reciprocal(y) * x;
-}
-
-
-
-/* 3x3 matrix
- *
- * We define this mathematical object because it is often used in 3D scans
- */
-
-template <typename T>
-class mat3 {
-
-    template <typename U>
-    friend std::ostream& operator<<(std::ostream& out, const mat3<U>& v);
-
-    template <typename U>
-    friend std::istream& operator>>(std::istream& in, mat3<U>& v);
-
-    protected:
-        std::vector<T> data;
-
-    public:
-        mat3 (                      ): data(9)
-            {};                                                               // default constructor
-
-        mat3 ( T x0,   T y0,   T z0,
-               T x1,   T y1,   T z1,
-               T x2,   T y2,   T z2 ): data(9)
-            { data[0] = x0; data[1] = y0; data[2] = z0;
-              data[3] = x1; data[4] = y1; data[5] = z1;
-              data[6] = x2; data[7] = y2; data[8] = z2; }                     // constructor from 9 scalars
-
-        mat3 ( T* xyz               ): data(9)
-            { std::copy (xyz, xyz+9, data.begin() ); }                        // constructor from pointer
-
-        mat3 ( const mat3<T>& rhs   ): data(9)
-            { std::copy ( rhs.data.begin(), rhs.data.end(), data.begin() ); } // copy constructor
-
-        mat3 ( const mat2<T>& rhs   ): data(9)
-            { data[0] = rhs[0][0]; data[1]=rhs[0][1]; 
-              data[3] = rhs[1][0]; data[4]=rhs[1][1]; }                             // copy from mat2 (add col + row of 0)
-
-    mat3<T> operator=( mat3<T> rhs ) {
-        std::copy( rhs.data.begin(), rhs.data.end(), data.begin() );          // assignment
-        return (*this);
-    }
-
-    // passing on the [] operator for accessing 2D elements
-          T* operator[] (const size_t offset)       { return &data[3*offset]; }       // write access
-    const T* operator[] (const size_t offset) const { return &data[3*offset]; }       // read  access
-
-    // (in) equality
-    bool operator== (mat3& v) { return ( data[0]==v[0] && data[1]==v[1] && data[2]==v[2] &&
-                                         data[3]==v[3] && data[4]==v[4] && data[4]==v[4] &&
-                                         data[6]==v[6] && data[7]==v[7] && data[8]==v[8] ); }
-    bool operator!= (mat3& v) { return !( (*this) == v );                                   }
-
-    // some matrix computations
-    mat3<T> reciprocal ( const mat3& v ) const       { return mat3 ( 1 / data[0], 1 / data[1], 1 / data[2],
-                                                                     1 / data[3], 1 / data[4], 1 / data[5],
-                                                                     1 / data[6], 1 / data[7], 1 / data[8]  );            }
-    const mat3<T> eye ( const T v = 1 ) const        { return mat3 ( 1, 0, 0,
-                                                                     0, 1, 0,
-                                                                     0, 0, 1 );                                           }
-
-    // return std::vector with coefficients
-    std::vector<T> getdata() { return data; }
-
-    // left += and + for elements and vectors
-    const mat3<T>& operator+= ( const T& rhs )       { data[0]+=rhs;    data[1]+=rhs;    data[2]+=rhs;
-                                                       data[3]+=rhs;    data[4]+=rhs;    data[5]+=rhs;
-                                                       data[6]+=rhs;    data[7]+=rhs;    data[8]+=rhs;
-                                                       return (*this); }
-    template <typename U>
-    const mat3<T>& operator+= ( const mat3<U>& rhs ) { data[0]+=rhs.data[0]; data[1]+=rhs.data[1]; data[2]+=rhs.data[2];
-                                                       data[3]+=rhs.data[3]; data[4]+=rhs.data[4]; data[5]+=rhs.data[5];
-                                                       data[6]+=rhs.data[6]; data[7]+=rhs.data[7]; data[8]+=rhs.data[8];
-                                                       return (*this); }
-    template <typename U>
-    const mat3<T> operator+   ( const U& rhs )       { mat3<T> out(*this); out += rhs; return out;                        }
-
-    // left -= and - for elements and vectors
-    const mat3<T>& operator-= ( const T& rhs )       { data[0]-=rhs;    data[1]-=rhs;    data[2]-=rhs;
-                                                       data[3]-=rhs;    data[4]-=rhs;    data[5]-=rhs;
-                                                       data[6]-=rhs;    data[7]-=rhs;    data[8]-=rhs;
-                                                       return (*this); }
-    template <typename U>
-    const mat3<T>& operator-= ( const mat3<U>& rhs ) { data[0]-=rhs[0]; data[1]-=rhs[1]; data[2]-=rhs[2];
-                                                       data[3]-=rhs[3]; data[4]-=rhs[4]; data[5]-=rhs[5];
-                                                       data[6]-=rhs[6]; data[7]-=rhs[7]; data[8]-=rhs[8];
-                                                       return (*this); }
-    template <typename U>
-    const mat3<T> operator-   ( const U& rhs )       { mat3<T> out(*this); out -= rhs; return out;                        }
-    const mat3<T> operator-   ( void )               { return (*this) * -1;                                               }
-
-    // matrix-matrix product (only for 2 mat3-sized inputs)
-    template <typename U>
-    mat3<T> operator*=( mat3<U>& m ) { mat3<T> m2( m.data[0] * data[0] + m.data[3] * data[1] + m.data[6] * data[2],
-                                                   m.data[1] * data[0] + m.data[4] * data[1] + m.data[7] * data[2],
-                                                   m.data[2] * data[0] + m.data[5] * data[1] + m.data[8] * data[2],
-                                                   m.data[0] * data[3] + m.data[3] * data[4] + m.data[6] * data[5],
-                                                   m.data[1] * data[3] + m.data[4] * data[4] + m.data[7] * data[5],
-                                                   m.data[2] * data[3] + m.data[5] * data[4] + m.data[8] * data[5],
-                                                   m.data[0] * data[6] + m.data[3] * data[7] + m.data[6] * data[8],
-                                                   m.data[1] * data[6] + m.data[4] * data[7] + m.data[7] * data[8],
-                                                   m.data[2] * data[6] + m.data[5] * data[7] + m.data[8] * data[8] );
-                                       (*this) = m2;
-                                       return (*this); }
-
-    // left *= for elements
-    const mat3<T>& operator*= ( const T& rhs )       { data[0]*=rhs;    data[1]*=rhs;    data[2]*=rhs;
-                                                       data[3]*=rhs;    data[4]*=rhs;    data[5]*=rhs;
-                                                       data[6]*=rhs;    data[7]*=rhs;    data[8]*=rhs;
-                                                       return (*this); }
-
-    // operator *
-    template <typename U>
-    const mat3<T> operator*   ( mat3<U>& rhs )       { mat3<T> out(*this); out *= rhs; return out;                        }
-    const mat3<T> operator*   ( const T& rhs )       { mat3<T> out(*this); out *= rhs; return out;                        }
-
-    // hadamard product (element-wise multiplication)
-    template <typename U>
-    const mat3<T>& hadamard ( const mat3<U>& rhs ) { data[0]/=rhs.data[0]; data[1]/=rhs.data[1]; data[2]/=rhs.data[2];
-                                                     data[3]/=rhs.data[3]; data[4]/=rhs.data[4]; data[5]/=rhs.data[5];
-                                                     data[6]/=rhs.data[6]; data[7]/=rhs.data[7]; data[8]/=rhs.data[8];
-                                                     return (*this); }
-
-    // left /= and / for elements and vectors
-    const mat3<T>& operator/= ( const T& rhs )       { data[0]/=rhs;    data[1]/=rhs;    data[2]/=rhs;
-                                                       data[3]/=rhs;    data[4]/=rhs;    data[5]/=rhs;
-                                                       data[6]/=rhs;    data[7]/=rhs;    data[8]/=rhs;
-                                                       return (*this); }
-    template <typename U>
-    const mat3<T>& operator/= ( const mat3<U>& rhs ) { data[0]/=rhs.data[0]; data[1]/=rhs.data[1]; data[2]/=rhs.data[2];
-                                                       data[3]/=rhs.data[3]; data[4]/=rhs.data[4]; data[5]/=rhs.data[5];
-                                                       data[6]/=rhs.data[6]; data[7]/=rhs.data[7]; data[8]/=rhs.data[8];
-                                                       return (*this); }
-    template <typename U>
-    const mat3<T> operator/   ( const U& rhs )       { mat3<T> out(*this); out /= rhs; return out;                        }
-
-    // adjoint (adjugate) matrix -- required for inverse
-    mat3<T> adjoint( const T scale = 1 ) const    { return mat3(  scale * (data[4] * data[8] - data[5] * data[7]),
-                                                                 -scale * (data[1] * data[8] - data[2] * data[7]),
-                                                                  scale * (data[1] * data[5] - data[2] * data[4]),
-                                                                 -scale * (data[3] * data[8] - data[6] * data[5]),
-                                                                  scale * (data[0] * data[8] - data[2] * data[6]),
-                                                                 -scale * (data[0] * data[5] - data[2] * data[3]),
-                                                                  scale * (data[3] * data[7] - data[4] * data[6]),
-                                                                 -scale * (data[0] * data[7] - data[1] * data[6]),
-                                                                  scale * (data[0] * data[4] - data[1] * data[3]) ); }
-
-    // determinant
-    T determinant() const { return   data[0] * ( data[4] * data[8] - data[5] * data[7] )
-                                   - data[1] * ( data[3] * data[8] - data[5] * data[6] )
-                                   + data[2] * ( data[3] * data[7] - data[4] * data[6] ); }
-
-    // inverse
-    const mat3<T> inverse() {
-        T det = this->determinant();
-        if ( det > FLT_EPSILON || det < -FLT_EPSILON )
-            return ( this->adjoint ( 1 / det ) );
-        else
-            return (*this) * std::numeric_limits<T>::quiet_NaN();
-    }
-
-};
-
-// non-members of mat3 for mat3
-
-template <typename U>
-std::ostream& operator<<(std::ostream& out, const mat3<U>& m)
-    { return out << '(' << m.data[0] << ',' << m.data[1] << ',' << m.data[2] <<        std::endl
-                 << ' ' << m.data[3] << ',' << m.data[4] << ',' << m.data[5] <<        std::endl
-                 << ' ' << m.data[6] << ',' << m.data[7] << ',' << m.data[8] << ')'; }
-
-template <typename U>
-std::istream& operator>>(std::istream& in , mat3<U> &v)
-    { return in >> v.data[0] >> v.data[1] >> v.data[2]
-                >> v.data[3] >> v.data[4] >> v.data[5]
-                >> v.data[6] >> v.data[7] >> v.data[8]; }
-
-// right +, -, * and / operators
-template <typename T>
-inline mat3 <T> operator+ ( T x, mat3 <T> y) {
-    return y             + x;
-}
-template <typename T>
-inline mat3 <T> operator* ( T x, mat3 <T> y) {
-    return y             * x;
-}
-template <typename T>
-inline mat3 <T> operator- ( T x, mat3 <T> y) {
-    return -y            + x;
-}
-template <typename T>
-inline mat3 <T> operator/ ( T x, mat3 <T> y) {
-    return reciprocal(y) * x;
-}
-
-// matrix-vector product (vector is assumed to be a column vector)
-template <typename T, typename U>
-const vec3<T> operator* ( const mat3<U>& m, const vec3<T>& v ) { return vec3( v[0] * m[0][0] + v[1] * m[0][1] + v[2] * m[0][2],
-                                                                              v[0] * m[1][0] + v[1] * m[1][1] + v[2] * m[1][2],
-                                                                              v[0] * m[2][0] + v[1] * m[2][1] + v[2] * m[2][2] ); }
-
-// hadamard product (element-wise multiplication)
-template <typename T, typename U>
-const mat3<T> hadamard ( const mat3<U>& m, const mat3<T>& n ) { return m.hadamard(n); }
-
-
 
 /* Vectors and matrices in 4 dimensions
  *
@@ -746,348 +78,426 @@ const mat3<T> hadamard ( const mat3<U>& m, const mat3<T>& n ) { return m.hadamar
 
 
 // forward declarations
-template <class>
-class vec4;
-template <class>
-class mat4;
+template <class, unsigned>
+class vecN;
+template <class, unsigned>
+class matN;
 
+// eigenvalue and -vector
+template <typename T, unsigned S>
+struct ev {
+	vecN<T,S>	v;
+	matN<T,S>	m;
+};
 
+// store rotations
+typedef struct { 
+	double c; 
+	double s; 
+	double t; 
+} rotation;
 
-/* 4-vector
- *
- * We define this mathematical object because it is often used in 4D scans
- */
+template <typename T, unsigned S>
+class vecN {
 
-template <typename T>
-class vec4 {
+    template <typename T2, unsigned S2>
+    friend std::ostream& operator<<(std::ostream& out, const vecN<T2,S2>& v);
 
-    template <typename U>
-    friend std::ostream& operator<<(std::ostream& out, const vec4<U>& v);
-
-    template <typename U>
-    friend std::istream& operator>>(std::istream& in, vec4<U>& v);
+    template <typename T2, unsigned S2>
+    friend std::istream& operator>>(std::istream& in, vecN<T2,S2>& v);
 
     protected:
-        std::vector<T> data;
+        std::vector<T> 
+			data;
+		unsigned
+			sz = S;
+		
 
     public:
-        vec4 (                    ): data(4)
-            {};                                                               // default constructor
+        vecN (                    ): data ( S )
+            {};																			// default constructor
 
-        vec4 ( T x, T y, T z, T t ): data(4)
-            { data[0] = x; data[1] = y; data[2] = z; data[3] = t; }           // constructor from 4 scalars
+        vecN ( T x, T y ): data ( S )
+            { data[0] = x; data[1] = y; }												// constructor from 2 scalars
 
-        vec4 ( T* xyz             ): data(4)
-            { std::copy (xyz, xyz+4, data.begin() ); }                        // constructor from pointer
+        vecN ( T x, T y, T z ): data ( S )
+            { data[0] = x; data[1] = y; if (S>2) data[2] = z; }							// constructor from 3 scalars
 
-        vec4 ( const vec4<T>& rhs ): data(4)
-            { std::copy ( rhs.data.begin(), rhs.data.end(), data.begin() ); } // copy constructor
+        vecN ( T x, T y, T z, T t ): data ( S )
+            { data[0] = x; data[1] = y; if (S>2) data[2] = z; if (S>3) data[3] = t; }	// constructor from 4 scalars
 
-        vec4 ( const vec2<T>& rhs ): data(4)
-            { data[0] = rhs[0]; data[1] = rhs[1]; }                           // copy from vec2 (add 2 0s)
+        vecN ( T* xyz             ): data ( S )
+            { std::copy (xyz, xyz+S, data.begin() ); }									// constructor from pointer
 
-        vec4 ( const vec3<T>& rhs ): data(4)
-            { data[0] = rhs[0]; data[1] = rhs[1]; data[2] = rhs[2]; }         // copy from vec3 (add a 0)
+        vecN ( const vecN<T,S>& rhs ): data ( S )
+            { std::copy ( rhs.data.begin(), rhs.data.end(), data.begin() ); }			// copy constructor
 
-    vec4<T> operator=( vec4<T> rhs ) {
-        std::copy( rhs.data.begin(), rhs.data.end(), data.begin() );          // assignment of vector
-        return (*this);
-    }
+		template <unsigned R>
+        vecN ( vecN<T,R>& rhs ): data ( S )
+            {  if (S>=R) std::copy ( rhs.getdata()->begin(), rhs.getdata()->end(), 
+									 data.begin() ); }									// copy from vec2/3 ( for vec3/4 )
 
-    vec4<T> operator=( T rhs ) {
-        data = rhs;                                                           // assignment of scalar
-        return (*this);
-    }
+		vecN<T,S> operator=( vecN<T,S> rhs ) {
+			std::copy( rhs.data.begin(), rhs.data.end(), data.begin() );				// assignment of vector
+			return (*this);
+		}
 
-    // passing on the [] operator for accessing elements
-          T& operator[] ( size_t offset)       { return data[offset]; }       // write access
-    const T& operator[] ( size_t offset) const { return data[offset]; }       // read  access
+		vecN<T,S> operator=( T rhs ) {
+			data = rhs;																	// assignment of scalar
+			return (*this);
+		}
 
-    // (in) equality
-    bool operator== (vec4& v) { return ( data[0]==v[0] && data[1]==v[1] && data[2]==v[2] && data[3]==v[3] );         }
-    bool operator!= (vec4& v) { return !( (*this) == v );                                                            }
+		// passing on the [] operator for accessing elements
+			  T& operator[] ( size_t offset)       { return data[offset]; }				// write access
+		const T& operator[] ( size_t offset) const { return data[offset]; }				// read  access
 
-    // some vector computations
-    T norm() { return ( sqrt( (*this) & (*this) ) ); } // norm: square root of inner product
-    vec4<T> reciprocal ( const vec4& v ) const       { return vec4 ( 1 / data[0], 1 / data[1], 1 / data[2] );        }
+		// member function for doing the same inside the class
+			  T& at ( size_t offset)       { return data.at ( offset ); }				// write access
+		const T& at ( size_t offset) const { return data.at ( offset ); }				// read  access
 
-    // return std::vector with coefficients
-    std::vector<T> getdata() { return data; }
+		// (in) equality
+		bool operator== (vecN& v) { return ( data == v.data ); }						// equality
+		bool operator!= (vecN& v) { return !( (*this) == v );  }						// inequality
 
-    // left += and + for elements and vectors
-    const vec4<T>& operator+= ( const T& rhs )       { for ( auto i : {0,1,2,3} ) data[i] += rhs;    return (*this); }
-    template <typename U>
-    const vec4<T>& operator+= ( const vec4<U>& rhs ) { for ( auto i : {0,1,2,3} ) data[i] += rhs[i]; return (*this); }
-    template <typename U>
-    const vec4<T> operator+   ( const U& rhs )       { vec4<T> out(*this); out += rhs; return out;                   }
+		// some vector computations
+		T norm() const { return ( sqrt( (*this) & (*this) ) ); } 						// norm: square root of inner product
+		vecN<T,S> reciprocal ( const vecN& v ) const {									// reciprocal: 1/x for all elements x
+			auto 
+				out = (*this); 
+			std::transform ( out.data.begin(), out.data.end(), out.data.begin(), std::bind1st ( std::divides<T>(), 1.0 ) ); 
+			return out; 
+		}
 
-    // left -= and - for elements and vectors
-    const vec4<T>& operator-= ( const T& rhs )       { for ( auto i : {0,1,2,3} ) data[i] -= rhs;    return (*this); }
-    template <typename U>
-    const vec4<T>& operator-= ( const vec4<U>& rhs ) { for ( auto i : {0,1,2,3} ) data[i] -= rhs[i]; return (*this); }
-    template <typename U>
-    const vec4<T> operator-   ( const U& rhs )       { vec4<T> out(*this); out -= rhs; return out;                   }
-    const vec4<T> operator-   ( void )               { return vec4    ( -data[0], -data[1], -data[2], data[3] );     }
+		// return std::vector with coefficients
+		unsigned size() { return S; }													// size of data
+		std::vector<T> *getdata() { return &data; }										// data vector
 
-    // left *= and * for elements and vectors
-    const vec4<T>& operator*= ( const T& rhs )       { for ( auto i : {0,1,2,3} ) data[i] *= rhs;    return (*this); }
-    template <typename U>
-    const vec4<T>& operator*= ( const vec4<U>& rhs ) { for ( auto i : {0,1,2,3} ) data[i] *= rhs[i]; return (*this); }
+		// left += and + for elements and vectors
+		const vecN<T,S>& operator+= ( const T& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] += rhs; return (*this); }
+		template <typename U>
+		const vecN<T,S>& operator+= ( const vecN<U,S>& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] += rhs[i]; return (*this); }
+		template <typename U>
+		const vecN<T,S> operator+   ( const U& rhs ) { auto out = (*this); out += rhs; return out;                   }
 
-    // multiplication by scalar
-    const vec4<T> operator*   ( const T& rhs )       { vec4<T> out(*this); out *= rhs; return out;                   }
+		// left -= and - for elements and vectors
+		const vecN<T,S>& operator-= ( const T& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] -= rhs;    return (*this); }
+		template <typename U>
+		const vecN<T,S>& operator-= ( const vecN<U,S>& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] -= rhs[i]; return (*this); }
+		template <typename U>
+		const vecN<T,S> operator-   ( const U& rhs ) { auto out = (*this); out -= rhs; return out; }
+		const vecN<T,S> operator-   ( void ) { auto out = (*this); out *= -1; return out; }
 
-    // multiplication by vector
-    template <typename U>
-    const vec4<T> operator*   ( const vec4<U>& rhs ) { vec4<T> out(*this); out *= rhs; return out;                   }
+		// left *= and * for elements and vectors
+		const vecN<T,S>& operator*= ( const T& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] *= rhs;    return (*this); }
+		template <typename U>
+		const vecN<T,S>& operator*= ( const vecN<U,S>& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] *= rhs[i]; return (*this); }
 
-    // multiplication by matrix (if v is a row vector)
-    template <typename U>
-    vec4<T> operator*( const mat4<U>& m ) const   { return vec4(   data[0] * m[0][0] + data[1] * m[1][0]
-                                                                 + data[2] * m[2][0] + data[2] * m[3][0],
-                                                                   data[0] * m[0][1] + data[1] * m[1][1]
-                                                                 + data[2] * m[2][1] + data[3] * m[3][1],
-                                                                   data[0] * m[0][2] + data[1] * m[1][2]
-                                                                 + data[2] * m[2][2] + data[3] * m[3][2],
-                                                                   data[0] * m[0][3] + data[1] * m[1][3]
-                                                                 + data[2] * m[2][3] + data[3] * m[3][3] ); }
+		// multiplication by scalar
+		const vecN<T,S> operator*   ( const T& rhs ) { auto out = (*this); out *= rhs; return out;                   }
 
-    // left /= and / for elements and vectors
-    const vec4<T>& operator/= ( const T& rhs )       { for ( auto i : {0,1,2,3} ) data[i] /= rhs;    return (*this); }
-    template <typename U>
-    const vec4<T>& operator/= ( const vec4<U>& rhs ) { for ( auto i : {0,1,2,3} ) data[i] /= rhs[i]; return (*this); }
-    template <typename U>
-    const vec4<T> operator/   ( const U& rhs )       { vec4<T> out(*this); out /= rhs; return out;                   }
+		// multiplication by vector
+		template <typename U>
+		const vecN<T,S> operator*   ( const vecN<U,S>& rhs ) { auto out = (*this); out *= rhs; return out;                   }
 
-    // inner product (generalisation of dot product)
-    T operator& ( const vec4& v ) const { return v[0] * data[0] + v[1] * data[1] + v[2] * data[2] + v[3] * data[3];  }
+		// multiplication by matrix (if v is a row vector)
+		template <typename U>
+		vecN<T,S> operator*( const matN<U,S>& m ) const { 
+			vecN<T,S> out;
+			for ( auto i : std::views::iota(0u, S) )		// column in m
+				for ( auto j : std::views::iota(0u, S) )	// column in (*this), row in m
+					out.data[i] += data[i] * m [i][j];
+			return out; 
+		}
+
+		// left /= and / for elements and vectors
+		const vecN<T,S>& operator/= ( const T& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] /= rhs;    return (*this); }
+		template <typename U>
+		const vecN<T,S>& operator/= ( const vecN<U,S>& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] /= rhs[i]; return (*this); }
+		template <typename U>
+		const vecN<T,S> operator/   ( const U& rhs ) { vecN<T,S> out(*this); out /= rhs; return out;                   }
+
+		// inner product (generalisation of dot product)
+		T operator& ( const vecN<T,S>& v ) const { return std::inner_product ( data.begin(), data.end(), v.data.begin(), 0 ); }
+
+		// cross product (exterior/wedge product in other than 3D but mostly used in 3D as cross product)
+		vecN<T,S> operator^( const vecN<T,S>& v ) const { 
+			switch (S) {
+				case ( 2 ): // exterior product
+					return vecN( data[0] * v[1] - data[1] * v[0], 0 );   
+					break;
+				case ( 3 ): // cross product
+					return vecN( data[1] * v[2] - data[2] * v[1],
+								 data[0] * v[2] - data[2] * v[0],
+								 data[0] * v[1] - data[1] * v[0] );   
+					break;
+			default:
+				std::cerr << "exterior / cross product only defined as scalar in 2D / 3D" << std::endl;
+				return (*this);
+			} // switch
+		} // operator
 
 };
 
-// non-members of vec4 for vec4
+// non-members of vecN for vecN
+template <typename T, unsigned S>
+std::ostream& operator<<(std::ostream& out, const vecN<T,S>& v) { 
+	out << "( ";
+	for ( auto i : std::views::iota(0u, S) )
+		out << v.data[i] << ", "; 
+	out << "\b\b )"; // use two ANSI backspace characters '\b' to overwrite final ", "
+	return out; 
+}
 
-template <typename U>
-std::ostream& operator<<(std::ostream& out, const vec4<U>& v)
-    { return out << '(' << v.data[0] << ',' << v.data[1] << ',' << v.data[2] << ',' << v.data[3] <<')'; }
-
-template <typename U>
-std::istream& operator>>(std::istream& in , vec4<U> &v)
-    { return in >> v.data[0] >> v.data[1] >> v.data[2] >> v.data[3]; }
+template <typename T, unsigned S>
+std::istream& operator>>(std::istream& in , vecN<T,S> &v) { 
+	for ( auto i : std::views::iota(0u, S) )
+		in >> v.data[i]; 
+	return in;
+}
 
 // right +, -, * and / operators
-template <typename T>
-inline vec4 <T> operator+ ( T x, vec4 <T> y) {
-    return y             + x;
+template <typename T, unsigned S>
+inline vecN <T,S> operator+ ( T x, vecN <T,S> y) {
+    return y + x;
 }
-template <typename T>
-inline vec4 <T> operator* ( T x, vec4 <T> y) {
-    return y             * x;
+template <typename T, unsigned S>
+inline vecN <T,S> operator* ( T x, vecN <T,S> y) {
+    return y * x;
 }
-template <typename T>
-inline vec4 <T> operator- ( T x, vec4 <T> y) {
-    return -y            + x;
+template <typename T, unsigned S>
+inline vecN <T,S> operator- ( T x, vecN <T,S> y) {
+    return -y + x;
 }
-template <typename T>
-inline vec4 <T> operator/ ( T x, vec4 <T> y) {
+template <typename T, unsigned S>
+inline vecN <T,S> operator/ ( T x, vecN <T,S> y) {
     return reciprocal(y) * x;
 }
 
 
 
-/* 4x4 matrix
+/* NxN matrix ( for N in 2,3,4 )
  *
- * We define this mathematical object because it is often used in 4D scans
  */
 
-template <typename T>
-class mat4 {
+template <typename T, unsigned S>
+class matN {
 
-    template <typename U>
-    friend std::ostream& operator<<(std::ostream& out, const mat4<U>& v);
+    template <typename T2, unsigned S2>
+    friend std::ostream& operator<<(std::ostream& out, const matN<T2,S2>& v);
 
-    template <typename U>
-    friend std::istream& operator>>(std::istream& in, mat4<U>& v);
+    template <typename T2, unsigned S2>
+    friend std::istream& operator>>(std::istream& in, matN<T2,S2>& v);
 
     protected:
-        std::vector<T> data;
+        std::vector<T> 
+			data;
+		unsigned
+			sz = S;
 
     public:
-        mat4 (                      ): data(16)
-            {};                                                               // default constructor
-
-        mat4 ( T x0,   T y0,   T z0,   T t0,
+        matN (                      ): data ( S*S )
+            {};																	// default constructor
+        matN ( T x0,   T y0,													// constructor from  4 scalars
+               T x1,   T y1 ): data( S*S ) {
+			  data[ 0] = x0; data[ 1] = y0;
+			  data[ 2] = x1; data[ 3] = y1;
+			}
+        matN ( T x0,   T y0,   T z0,
+               T x1,   T y1,   T z1,
+               T x2,   T y2,   T z2 ): data ( S*S )
+            { if ( S>2 ) {														// constructor from 16 scalars
+			  data[ 0] = x0; data[ 1] = y0; data[ 2] = z0;
+              data[ 3] = x1; data[ 4] = y1; data[ 5] = z1;
+              data[ 6] = x2; data[ 7] = y2; data[ 8] = z2;
+			  }
+			}    
+        matN ( T x0,   T y0,   T z0,   T t0,
                T x1,   T y1,   T z1,   T t1,
                T x2,   T y2,   T z2,   T t2,
-               T x3,   T y3,   T z3,   T t3 ): data(16)
-            { data[ 0] = x0; data[ 1] = y0; data[ 2] = z0; data[ 3] = t0;
+               T x3,   T y3,   T z3,   T t3 ): data ( S*S )
+            { if ( S>3 ) {														// constructor from 16 scalars
+			  data[ 0] = x0; data[ 1] = y0; data[ 2] = z0; data[ 3] = t0;
               data[ 4] = x1; data[ 5] = y1; data[ 6] = z1; data[ 7] = t1;
               data[ 8] = x2; data[ 9] = y2; data[10] = z2; data[11] = t2;
-              data[12] = x3; data[13] = y3; data[14] = z3; data[15] = t3;}    // constructor from 16 scalars
+              data[12] = x3; data[13] = y3; data[14] = z3; data[15] = t3;
+			  }
+			}    
 
-        mat4 ( T* xyz               ): data(16)
-            { std::copy (xyz, xyz+16, data.begin() ); }                       // constructor from pointer
+        matN ( T* xyz                 ): data ( S*S )
+            { std::copy (xyz, xyz+S*S, data.begin() ); }						// constructor from pointer
 
-        mat4 ( const mat4<T>& rhs   ): data(16)
-            { std::copy ( rhs.data.begin(), rhs.data.end(), data.begin() ); } // copy constructor
+        matN ( const matN<T,S>& rhs   ): data ( S*S )
+            { std::copy ( rhs.data.begin(), rhs.data.end(), data.begin() ); }	// copy constructor
 
-        mat4 ( const mat2<T>& rhs   ): data(16)
-            { data[0] = rhs[0][0]; data[1]=rhs[0][1]; 
-              data[4] = rhs[1][0]; data[5]=rhs[1][1]; }                       // copy from mat2 (add cols + rows of 0)
+		matN<T,S> operator=( matN<T,S> rhs ) {
+			std::copy( rhs.data.begin(), rhs.data.end(), data.begin() );		// assignment
+			return (*this);
+		}
 
-        mat4 ( const mat3<T>& rhs   ): data(16)
-            { data[0] = rhs[0][0]; data[1]=rhs[0][1]; data[ 2]=rhs[0][2];
-              data[4] = rhs[1][0]; data[5]=rhs[1][1]; data[ 6]=rhs[1][2];
-              data[8] = rhs[2][0]; data[9]=rhs[2][1]; data[10]=rhs[1][2]; }   // copy from mat3 (add cols + rows of 0)
+		// passing on the [] operator for accessing 2D elements
+			  T* operator[] (const size_t offset)       { return &data[S*offset]; }		// write access
+		const T* operator[] (const size_t offset) const { return &data[S*offset]; }		// read  access
 
-    mat4<T> operator=( mat4<T> rhs ) {
-        std::copy( rhs.data.begin(), rhs.data.end(), data.begin() );          // assignment
-        return (*this);
-    }
+		// same functionality for inside the class
+		      T& at(const size_t r, const size_t c )        { return data.at ( S*r + c ); } 
+		const T& at(const size_t r, const size_t c ) const  { return data.at ( S*r + c ); }   
 
-    // passing on the [] operator for accessing 2D elements
-          T* operator[] (const size_t offset)       { return &data[4*offset]; }       // write access
-    const T* operator[] (const size_t offset) const { return &data[4*offset]; }       // read  access
+		// (in) equality
+		bool operator== (matN& v) { return ( data == v.data ); }
+		bool operator!= (matN& v) { return !( (*this) == v );                                   }
 
-    // (in) equality
-    bool operator== (mat4& v) { return ( data[ 0]==v[ 0] && data[ 1]==v[ 1] && data[ 2]==v[ 2] && data[ 3]==v[ 3] &&
-                                         data[ 4]==v[ 4] && data[ 5]==v[ 5] && data[ 6]==v[ 6] && data[ 7]==v[ 7] &&
-                                         data[ 8]==v[ 8] && data[ 9]==v[ 9] && data[10]==v[10] && data[11]==v[11] &&
-                                         data[12]==v[12] && data[13]==v[13] && data[14]==v[14] && data[15]==v[15] ); }
-    bool operator!= (mat4& v) { return !( (*this) == v );                                   }
+		// some matrix computations
+		matN<T,S> reciprocal () const {														// reciprocal: 1/x for all elements x
+			auto 
+				out = (*this); 
+			std::transform ( out.data.begin(), out.data.end(), out.data.begin(), std::bind1st ( std::divides<T>(), 1.0 ) ); 
+			return out; 
+		}
+																		 																		
+		const matN<T,S> eye ( const T v = 1 ) const {											// identity
+			matN<T,S> out; 
+			for ( auto i : std::views::iota(0u, S) )
+				out[i][i] = v;
+			return out;
+		}
 
-    // some matrix computations
-    mat4<T> reciprocal ( const mat4& v ) const       { return mat4 ( 1 / data[ 0], 1 / data[ 1], 1 / data[ 2], 1 / data[ 3],
-                                                                     1 / data[ 4], 1 / data[ 5], 1 / data[ 6], 1 / data[ 7],
-                                                                     1 / data[ 8], 1 / data[ 9], 1 / data[10], 1 / data[11],
-                                                                     1 / data[12], 1 / data[13], 1 / data[14], 1 / data[15]  );            }
-    const mat4<T> eye ( const T v = 1 ) const        { return mat4 ( 1, 0, 0, 0,
-                                                                     0, 1, 0, 0,
-                                                                     0, 0, 1, 0,
-                                                                     0, 0, 0, 1 );                                           }
+		// return std::vector with coefficients
+		unsigned size() { return S; }														// size of data
+		std::vector<T> *getdata() { return &data; }											// data vector
 
-    // return std::vector with coefficients
-    std::vector<T> getdata() { return data; }
+		// left += and + for elements and vectors
+		const matN<T,S>& operator+= ( const T& rhs )       { for ( auto i : std::views::iota(0u, S*S) ) data[i] += rhs;    return (*this); }
+		template <typename U>
+		const matN<T,S>& operator+= ( const matN<U,S>& rhs ) { for ( auto i : std::views::iota(0u, S*S) ) data[i] += rhs.data[i]; return (*this); }
 
-    // left += and + for elements and vectors
-    const mat4<T>& operator+= ( const T& rhs )       { for ( int i=0; i<16; i++ ) data[i] += rhs;    return (*this); }
-    template <typename U>
-    const mat4<T>& operator+= ( const mat4<U>& rhs ) { for ( int i=0; i<16; i++ ) data[i] += rhs.data[i]; return (*this); }
+		template <typename U>
+		const matN<T,S> operator+   ( const U& rhs )       { auto out = (*this); out += rhs; return out;                   }
 
-    template <typename U>
-    const mat4<T> operator+   ( const U& rhs )       { mat4<T> out(*this); out += rhs; return out;                   }
+		// left -= and - for elements and vectors
+		const matN<T,S>& operator-= ( const T& rhs )       { for ( auto i : std::views::iota(0u, S*S) ) data[i] -= rhs; return (*this); }
 
-    // left -= and - for elements and vectors
-    const mat4<T>& operator-= ( const T& rhs )       { for ( int i=0; i<16; i++ ) data[i] -= rhs; return (*this); }
+		template <typename U>
+		const matN<T,S>& operator-= ( const matN<U,S>& rhs ) { for ( auto i : std::views::iota(0u, S*S) ) data[i] -= rhs.data[i]; return (*this); }
 
-    template <typename U>
-    const mat4<T>& operator-= ( const mat4<U>& rhs ) { for ( int i=0; i<16; i++ ) data[i] -= rhs.data[i]; return (*this); }
+		template <typename U>
+		const matN<T,S> operator-   ( const U& rhs )       { matN<T,S> out(*this); out -= rhs; return out;                   }
+		const matN<T,S> operator-   ( void )               { auto out = (*this); out *= -1; return out; }
+		
+		// matrix-matrix product (only for 2 equal size inputs)
+		template <typename U>
+		matN<T,S> operator*=( matN<U,S>& m ) { 			
+			matN<T,S> product;
+			for ( auto i : std::views::iota(0u, S) )
+				for ( auto j : std::views::iota(0u, S) )
+					for ( auto k : std::views::iota(0u, S) )
+						product.data [ S*i + j ] += data [ S*i + k ] * m.data [ S*k + i ];
+			return (*this);
+		}
 
-    template <typename U>
-    const mat4<T> operator-   ( const U& rhs )       { mat4<T> out(*this); out -= rhs; return out;                   }
-    const mat4<T> operator-   ( void )               { return mat4 ( -data[ 0], -data[ 1], -data[ 2], -data[ 3]
-                                                                     -data[ 4], -data[ 5], -data[ 6], -data[ 7]
-                                                                     -data[ 8], -data[ 9], -data[10], -data[11]
-                                                                     -data[12], -data[13], -data[14], -data[15] );        }
-    // matrix-matrix product (only for 2 mat4-sized inputs)
-    template <typename U>
-    mat4<T> operator*=( mat4<U>& m ) { mat4<T> m2( m.data[ 0] * data[ 0] + m.data[ 4] * data[ 1] + m.data[ 8] * data[ 2] + m.data[12] * data[ 3],
-                                                   m.data[ 1] * data[ 0] + m.data[ 5] * data[ 1] + m.data[ 9] * data[ 2] + m.data[13] * data[ 3],
-                                                   m.data[ 2] * data[ 0] + m.data[ 6] * data[ 1] + m.data[10] * data[ 2] + m.data[14] * data[ 3],
-                                                   m.data[ 3] * data[ 0] + m.data[ 7] * data[ 1] + m.data[11] * data[ 2] + m.data[15] * data[ 3],
-                                                   m.data[ 0] * data[ 4] + m.data[ 4] * data[ 5] + m.data[ 8] * data[ 6] + m.data[12] * data[ 7],
-                                                   m.data[ 1] * data[ 4] + m.data[ 5] * data[ 5] + m.data[ 9] * data[ 6] + m.data[13] * data[ 7],
-                                                   m.data[ 2] * data[ 4] + m.data[ 6] * data[ 5] + m.data[10] * data[ 6] + m.data[14] * data[ 7],
-                                                   m.data[ 3] * data[ 4] + m.data[ 7] * data[ 5] + m.data[11] * data[ 6] + m.data[15] * data[ 7],
-                                                   m.data[ 0] * data[ 8] + m.data[ 4] * data[ 9] + m.data[ 8] * data[10] + m.data[12] * data[11],
-                                                   m.data[ 1] * data[ 8] + m.data[ 5] * data[ 9] + m.data[ 9] * data[10] + m.data[13] * data[11],
-                                                   m.data[ 2] * data[ 8] + m.data[ 6] * data[ 9] + m.data[10] * data[10] + m.data[14] * data[11],
-                                                   m.data[ 3] * data[ 8] + m.data[ 7] * data[ 9] + m.data[11] * data[10] + m.data[15] * data[11],
-                                                   m.data[ 0] * data[12] + m.data[ 4] * data[13] + m.data[ 8] * data[14] + m.data[12] * data[15],
-                                                   m.data[ 1] * data[12] + m.data[ 5] * data[13] + m.data[ 9] * data[14] + m.data[13] * data[15],
-                                                   m.data[ 2] * data[12] + m.data[ 6] * data[13] + m.data[10] * data[14] + m.data[14] * data[15],
-                                                   m.data[ 3] * data[12] + m.data[ 7] * data[13] + m.data[11] * data[14] + m.data[15] * data[15]  );
-                                       (*this) = m2;
-                                       return (*this); }
+		// left *= for scalar
+		const matN<T,S>& operator*= ( const T& rhs )       { for ( auto i : std::views::iota(0u, S*S) ) data[i] *= rhs; return (*this);    }
+		
+		// operator * (matrix pruduct for matrix rhs, element-wise for scalar rhs)
+		template <typename U>
+		const matN<T,S> operator*   ( matN<U,S>& rhs )       { auto out = (*this); out *= rhs; return out;                        }
+		const matN<T,S> operator*   ( const T& rhs )       { auto out = (*this); out *= rhs; return out;                        }
 
-    // left *= for elements
-    const mat4<T>& operator*= ( const T& rhs )       { for ( int i=0; i<16; i++ ) data[i] *= rhs; return (*this);    }
-    // operator *
-    template <typename U>
-    const mat4<T> operator*   ( mat4<U>& rhs )       { mat4<T> out(*this); out *= rhs; return out;                        }
-    const mat4<T> operator*   ( const T& rhs )       { mat4<T> out(*this); out *= rhs; return out;                        }
+		// hadamard product (element-wise multiplication)
+		template <typename U>
+		const matN<T,S>& hadamard ( const matN<U,S>& rhs ) { for ( auto i : std::views::iota(0u, S*S) ) data[i] *= rhs.data[i]; return (*this); }
 
-    // hadamard product (element-wise multiplication)
-    template <typename U>
-    const mat4<T>& hadamard ( const mat4<U>& rhs )   { for ( int i=0; i<16; i++ ) data[i] *= rhs.data[i]; return (*this); }
+		// left /= and / for elements and matrices
+		const matN<T,S>& operator/= ( const T& rhs )       { for ( auto i : std::views::iota(0u, S*S) ) data[i] /= rhs;    return (*this); }
+		template <typename U>
+		const matN<T,S>& operator/= ( const matN<U,S>& rhs ) { (*this) *= rhs.inverse(); return (*this); }
 
-    // left /= and / for elements and vectors
-    const mat4<T>& operator/= ( const T& rhs )       { for ( int i=0; i<16; i++ ) data[i] /= rhs;    return (*this); }
-    template <typename U>
-    const mat4<T>& operator/= ( const mat4<U>& rhs ) { for ( int i=0; i<16; i++ ) data[i] /= rhs.data[i]; return (*this); }
+		template <typename U>
+		const matN<T,S> operator/   ( const U& rhs )       { auto out = (*this); out /= rhs; return out;                        }
 
-    template <typename U>
-    const mat4<T> operator/   ( const U& rhs )       { mat4<T> out(*this); out /= rhs; return out;                        }
+		// cofactors -- required for adjoint (adjugate) matrix
+		const T cofactor_ij ( size_t i, size_t j ) {			
+			
+			vecN<size_t,S> ii;
+			vecN<size_t,S> jj;
+			double fac;
 
-    // cofactors -- required for adjoint (adjugate) matrix
-    const T cofactor_ij ( size_t i, size_t j ) {
+			// fill with elements except i
+			for (size_t k=0; k<i; k++) ii[k] = k;
+			for (size_t k=i; k<3; k++) ii[k] = k+1;
 
-        vec4<size_t> ii;
-        vec4<size_t> jj;
-        double fac;
+			// fill with elements except j
+			for (size_t k=0; k<j; k++) jj[k] = k;
+			for (size_t k=j; k<3; k++) jj[k] = k+1;
 
-		// fill with elements except i
-        for (size_t k=0; k<i; k++) ii[k] = k;
-        for (size_t k=i; k<3; k++) ii[k] = k+1;
+			(fac)  = (*this)[ii[0]][jj[0]] * (  (*this)[ii[1]][jj[1]] * (*this)[ii[2]][jj[2]]
+											 -  (*this)[ii[1]][jj[2]] * (*this)[ii[2]][jj[1]] );
+			(fac) -= (*this)[ii[0]][jj[1]] * (  (*this)[ii[1]][jj[0]] * (*this)[ii[2]][jj[2]]
+											 -  (*this)[ii[1]][jj[2]] * (*this)[ii[2]][jj[0]] );
+			(fac) += (*this)[ii[0]][jj[2]] * (  (*this)[ii[1]][jj[0]] * (*this)[ii[2]][jj[1]]
+											 -  (*this)[ii[1]][jj[1]] * (*this)[ii[2]][jj[0]] );
 
-        // fill with elements except j
-        for (size_t k=0; k<j; k++) jj[k] = k;
-        for (size_t k=j; k<3; k++) jj[k] = k+1;
+			/* compute sign */
+			size_t k = i+j;
+			if ( k != (k/2)*2) {
+				(fac) = -(fac);
+			}
 
-        (fac)  = (*this)[ii[0]][jj[0]] * (  (*this)[ii[1]][jj[1]] * (*this)[ii[2]][jj[2]]
-                                         -  (*this)[ii[1]][jj[2]] * (*this)[ii[2]][jj[1]] );
-        (fac) -= (*this)[ii[0]][jj[1]] * (  (*this)[ii[1]][jj[0]] * (*this)[ii[2]][jj[2]]
-                                         -  (*this)[ii[1]][jj[2]] * (*this)[ii[2]][jj[0]] );
-        (fac) += (*this)[ii[0]][jj[2]] * (  (*this)[ii[1]][jj[0]] * (*this)[ii[2]][jj[1]]
-                                         -  (*this)[ii[1]][jj[1]] * (*this)[ii[2]][jj[0]] );
+			return T(fac);
 
-        /* compute sign */
-        size_t k = i+j;
-        if ( k != (k/2)*2) {
-            (fac) = -(fac);
-        }
+		} // cofactor_ij
 
-        return T(fac);
+		// determinant -- 0 for singular matrices
+		T determinant () {
+			
+			switch ( S ) {
+				case ( 4 ): 
+					return ( cofactor_ij ( 0, 0 ) * (*this)[0][0] +
+							 cofactor_ij ( 0, 1 ) * (*this)[0][1] +
+							 cofactor_ij ( 0, 2 ) * (*this)[0][2] +
+							 cofactor_ij ( 0, 3 ) * (*this)[0][3] );
+					break;				
+				case ( 3 ):
+					return (  data[0] * ( data[4] * data[8] - data[5] * data[7] )
+							- data[1] * ( data[3] * data[8] - data[5] * data[6] )
+							+ data[2] * ( data[3] * data[7] - data[4] * data[6] ) );
+					break;
+				default:
+					return ( data[0] *  data[3] - data[1] * data[2] );
+			} // switch
 
-    } // cofactor_ij
+		} // determinant
 
-    // determinant -- 0 for singular matrices
-    const T determinant () {
+		// adjoint (adjugate) matrix -- required for inverse
+		matN<T,S> adjoint( const T scale = 1 ) {
 
-    T det =
-        cofactor_ij ( 0, 0 ) * (*this)[0][0] +
-        cofactor_ij ( 0, 1 ) * (*this)[0][1] +
-        cofactor_ij ( 0, 2 ) * (*this)[0][2] +
-        cofactor_ij ( 0, 3 ) * (*this)[0][3];
+			matN<T,S> out;
+			switch ( S ) {
+				case ( 4 ): 
+					for ( auto i : std::views::iota(0u, S) )
+						for ( auto j : std::views::iota(0u, S) )
+							out[j][i] = scale * cofactor_ij ( i, j );
+					return out;
+					break;
+				case ( 3 ):
+					return matN ( scale * (data[4] * data[8] - data[5] * data[7]),
+								 -scale * (data[1] * data[8] - data[2] * data[7]),
+								  scale * (data[1] * data[5] - data[2] * data[4]),
+								 -scale * (data[3] * data[8] - data[6] * data[5]),
+								  scale * (data[0] * data[8] - data[2] * data[6]),
+								 -scale * (data[0] * data[5] - data[2] * data[3]),
+								  scale * (data[3] * data[7] - data[4] * data[6]),
+								 -scale * (data[0] * data[7] - data[1] * data[6]),
+								  scale * (data[0] * data[4] - data[1] * data[3]) ); 
+					break;
+				default:
+					return matN ( scale * data[3], -scale * data[1],
+								 -scale * data[2],  scale * data[0]  );
+			} // switch
 
-    return det;
-
-    } // determinant
-
-    // adjoint (adjugate) matrix -- required for inverse
-    mat4<T> adjoint( const T scale = 1 ) {
-
-        mat4<T> out;
-
-        for ( int i=0; i<4; i++ )
-            for ( int j=0; j<4; j++ )
-                out[j][i] = scale * cofactor_ij ( i, j );
-
-        return out;
-
-    }
-
+		}
+    
     // inverse
-    const mat4<T> inverse() {
+    const matN<T,S> inverse() {
         T det = this->determinant();
         if ( det > FLT_EPSILON || det < -FLT_EPSILON )
             return ( this->adjoint ( 1 / det ) );
@@ -1095,52 +505,328 @@ class mat4 {
             return (*this) * std::numeric_limits<T>::quiet_NaN();
     }
 
-};
+    ////////////////////////////////////////////////////////////////
+	// code that omputes eigenvectors of ->only symmetric<- matrices
+    ////////////////////////////////////////////////////////////////
+	// 
+	// the Jacobi algorithm applies successive Givens rotations
+	// to the largest above-diagonal element, setting them to 0
+	// until the matrix is diagonal. 
 
-// non-members of mat4 for mat4
 
-template <typename U>
-std::ostream& operator<<(std::ostream& out, const mat4<U>& m)
-    { return out << '(' << m.data[ 0] << ',' << m.data[ 1] << ',' << m.data[ 2] << ',' << m.data[ 3] << std::endl
-                 << ' ' << m.data[ 4] << ',' << m.data[ 5] << ',' << m.data[ 6] << ',' << m.data[ 7] << std::endl
-                 << ' ' << m.data[ 8] << ',' << m.data[ 9] << ',' << m.data[10] << ',' << m.data[11] << std::endl
-                 << ' ' << m.data[12] << ',' << m.data[13] << ',' << m.data[14] << ',' << m.data[15] << ')'; }
+	// for a given row, find index of maximum after the diagonal
+	unsigned max_col_upper ( unsigned row ) const {
+	  unsigned c_max = row+1;
+	  for ( unsigned c = row+2; c < S; c++ )
+		if ( std::abs ( at ( row, c ) ) > std::abs ( at ( row, c_max ) ) )
+		  c_max = c;
+	  return c_max;
+	}
+	
+	// find the maximum entry in the matrix M in O(n) time
+	void max_pos_upper ( 	unsigned&				i_max, 
+							unsigned&				j_max, 
+							vecN<unsigned, S-1>&	max_idx_row ) const {
+	  i_max = 0;
+	  j_max = max_idx_row[i_max];
+	  auto 
+		max_entry = std::abs ( at ( i_max, j_max ) );
+	  unsigned  
+		nm1 = S-1;
+		
+	  for (unsigned i=1; i < nm1; i++) {
+		unsigned j = max_idx_row[i];
+		if ( std::abs ( at ( i, j ) ) > max_entry) {
+		  max_entry = std::abs ( at ( i, j ) );
+		  i_max = i;
+		  j_max = j;
+		} // if abs
+	  } // for i
 
-template <typename U>
-std::istream& operator>>(std::istream& in , mat4<U> &v)
-    { return in >> v.data[ 0] >> v.data[ 1] >> v.data[ 2] >> v.data[ 3]
-                >> v.data[ 4] >> v.data[ 5] >> v.data[ 6] >> v.data[ 7]
-                >> v.data[ 8] >> v.data[ 9] >> v.data[10] >> v.data[11]
-                >> v.data[12] >> v.data[13] >> v.data[14] >> v.data[15]; }
+	} // maxEntry
+
+	// Eigenvectors and -values FOR SYMMETRIC MATRICES ONLY
+	// This is Jacobi's algorithm, only uses upper diagonal
+	//      It diagonalises the matrix, so that the values on the diagonal
+	//		are eigenvalues. The required rotations can also be applied to
+	//		an identity matrix, to yield the corresponding eigenvectors. 	
+	ev<T,S> diagonalise_sym ( 	bool vectors = true, 			// set to false for eigenvalues only
+								unsigned max_iter = 100000 ) {	// decrease to escape slow convergence
+		
+		matN<T,S> 
+			m (*this);							// local copy
+		ev<T,S>
+			ev;									// output eigenvalues and -vectors
+		vecN<unsigned,S-1>
+			max_idx_row;						// row 0..S-2: column idx of highest value
+
+		if (vectors)
+			ev.m=eye();
+
+		for (unsigned i = 0; i < S-1; i++)			//Initialize the "max_idx_row[]" array 
+			max_idx_row[i] = m.max_col_upper(i);	//(which is needed by max_pos_upper())
+		
+		for ( unsigned iter=0; iter <= max_iter; iter++ ) {
+			unsigned i,j;
+			m.max_pos_upper( i, j, max_idx_row );	// Find the maximum entry in the matrix. Store in i,j
+			
+			// If m[i][j] is small compared to m[i][i] and m[j][j], set it to 0 and update max.
+			if (  ( m[i][i] + m[i][j] == m[i][i] ) && 
+				  ( m[j][j] + m[i][j] == m[j][j] )  ) {
+				m[i][j] = 0.0;
+				max_idx_row[i] = m.max_col_upper(i);
+			}  // if 0
+	
+			// if the maximum element is 0
+			if ( m[i][j] == 0.0 )
+				break;
+
+			// Otherwise, apply a rotation to make M[i][j] = 0
+			rotation 
+				r = m.CalcRot ( i, j );				// Calculate the parameters of the rotation matrix.
+			m.ApplyRot ( r, i, j, max_idx_row ); 	// Apply this rotation to the M matrix.
+			if ( vectors )							// Optional: the eigenvectors are requested, then
+				ev.m.ApplyRotLeft ( r, i, j );		// apply the rotation to the eigenvector matrix
+		
+		} // for iter 
+		
+		// copy m's diagonal as the eigenvalues
+		for ( size_t r = 0; r<S; r++ ) 
+			ev.v[r] = m[r][r]; 
+		
+		return ev;
+
+	} // eigen_int
+
+// calculate the rotation needed to zero the pivot
+// and store the angle's cosine, sine and tangent
+rotation CalcRot(	unsigned i,		// row index
+					unsigned j) {	// column index
+					
+	rotation 
+		r { 1, 1, 1 };
+	double 
+		M_jj_ii = at ( j, j ) - at ( i, i );
+		
+	if (M_jj_ii != 0.0) {
+	
+		r.t = 0.0;
+		double 
+			kappa = M_jj_ii,
+			M_ij = at ( i, j );
+			
+		if (M_ij != 0.0) {
+			
+			kappa /= (2.0*M_ij);
+			// t satisfies: t^2 + 2*t*kappa - 1 = 0
+			// (choose the root which has the smaller absolute value)
+			r.t = 1.0 / (std::sqrt(1 + kappa*kappa) + std::abs(kappa));
+			if (kappa < 0.0)
+				r.t = -r.t;
+				
+		} // if Mij
+		
+	} // if  Mjjii
+
+	r.c = 1.0 / std::sqrt(1 + r.t*r.t);
+	r.s = r.c*r.t;
+	return r;
+	
+}
+
+// apply the Givens rotation Q^T * M * Q
+void ApplyRot(	rotation r, // angle
+				unsigned i,		// row index
+				unsigned j,		// column index
+				vecN<unsigned,S-1>& max_idx_row ) {
+
+	  // Recall that:
+	  // c = cos(θ)
+	  // s = sin(θ)
+	  // t = tan(θ) (which should be <= 1.0)
+
+	  // Compute the diagonal elements of M which have changed:
+	  at(i,i) -= r.t * at(i,j);
+	  at(j,j) += r.t * at(i,j);
+	  // Note: This is algebraically equivalent to:
+	  // M[i][i] = c*c*M[i][i] + s*s*M[j][j] - 2*s*c*M[i][j]
+	  // M[j][j] = s*s*M[i][i] + c*c*M[j][j] + 2*s*c*M[i][j]
+
+	  //Update the off-diagonal elements of M which will change (above the diagonal)
+
+	  //assert(i < j);
+	  at(i,j) = 0.0;
+
+	  //compute M[w][i] and M[i][w] for all w!=i,considering above-diagonal elements
+	  
+	for (unsigned w=0; w < i; w++) {		// 0 <= w <  i  <  j < n
+		at ( i, w ) = at ( w, i );		// backup the previous value. store below diagonal (i>w)
+		at ( w, i ) = r.c * at ( w, i ) - r.s * at ( w, j );	//M[w][i], M[w][j] from previous iteration
+		if ( i == max_idx_row[w] ) 
+			max_idx_row[w] = max_col_upper(w);
+			else if ( std::abs( at ( w, i ) ) > std::abs( at( w, max_idx_row[w]) ) )
+				max_idx_row[w]=i;
+		//assert(max_idx_row[w] == max_col_upper(M, w));
+	} // for w	  
+	for (unsigned w=i+1; w < j; w++) {		// 0 <= i <  w  <  j < n
+		at ( w, i ) = at ( i, w );		// backup the previous value. store below diagonal (w>i)
+		at ( i, w ) = r.c * at ( i, w ) - r.s * at ( w, j ); //M[i][w], M[w][j] from previous iteration
+	} // for w
+	for (unsigned w=j+1; w < S; w++) {      // 0 <= i < j+1 <= w < n
+		at ( w, i ) = at ( i, w ); //backup the previous value. store below diagonal (w>i)
+		at ( i, w ) = r.c * at ( i, w ) - r.s * at ( j, w ); //M[i][w], M[j][w] from previous iteration
+	} // for w
+
+	// now that we're done modifying row i, we can update max_idx_row[i]
+	max_idx_row[i] = max_col_upper(i);
+
+	//compute M[w][j] and M[j][w] for all w!=j,considering above-diagonal elements
+	for ( unsigned w=0; w < i; w++ ) {			// 0 <=  w  <  i <  j < n
+		at ( w, j ) = r.s * at ( i, w ) + r.c * at ( w, j ); // M[i][w], M[w][j] from previous iteration
+		if ( j == max_idx_row[w]) 
+			max_idx_row[w] = max_col_upper(w);
+			else if ( std::abs( at ( w, j ) ) > std::abs( at ( w, max_idx_row[w] ) ) ) 
+					max_idx_row[w]=j;
+	} // for w
+	for ( unsigned w=i+1; w < j; w++) {      // 0 <= i+1 <= w <  j < n
+		at ( w, j ) = r.s*at(w,i) + r.c*at(w,j); //M[w][i], M[w][j] from previous iteration
+		if (j == max_idx_row[w]) 
+			max_idx_row[w] = max_col_upper(w);
+			else if ( std::abs( at ( w, j ) ) > std::abs( at ( w, max_idx_row[w] ) ) )
+				max_idx_row[w]=j;
+		//assert(max_idx_row[w] == max_col_upper(M, w));
+	} // for w
+	for (unsigned w=j+1; w < S; w++) {      // 0 <=  i  <  j <  w < n
+		at ( j, w ) = r.s * at ( w, i ) + r.c * at ( j, w ); //M[w][i], M[j][w] from previous iteration
+	}
+	// now that we're done modifying row j, we can update max_idx_row[j]
+	max_idx_row[j] = max_col_upper(j);
+
+} //Jacobi::ApplyRot()
+
+// apply one Givens rotation 
+void ApplyRotLeft( 	rotation r,	// angle 
+					unsigned i,		// row index
+					unsigned j) {	// column index
+
+  for (unsigned v = 0; v < S; v++) {
+	  
+    auto 
+		Miv = at ( i, v ); //backup E[i][v]
+    at ( i, v ) = r.c * at ( i, v ) - r.s * at ( j, v );
+    at ( j, v ) = r.s * Miv     	+ r.c * at ( j, v );
+  
+  } // for v
+
+} // ApplyRotateLeft
+
+
+
+
+}; // class matN
+
+// non-members of matN for matN
+template <typename U, unsigned S>
+std::ostream& operator<<(std::ostream& out, const matN<U,S>& m) { 
+	out << "( ";
+	for ( auto i : std::views::iota(0u, S) ) {
+		if ( i ) out << "  ";
+		for ( auto j : std::views::iota(0u, S) )
+			out << m[i][j] << ", ";
+		out << "\b\b\n";
+	}
+	out << ")"; // use two ANSI backspace characters '\b' to overwrite final ", "
+	return out; 
+}
+
+template <typename U, unsigned S>
+std::istream& operator>>(std::istream& in , matN<U,S> &v) { 
+	for ( auto i : std::views::iota(0u, S*S) )
+		in >> v.data[i]; 
+	return in;
+}
 
 // right +, -, * and / operators
-template <typename T>
-inline mat4 <T> operator+ ( T x, mat4 <T> y) {
+template <typename T, unsigned S>
+inline matN <T,S> operator+ ( T x, matN <T,S> y) {
     return y             + x;
 }
-template <typename T>
-inline mat4 <T> operator* ( T x, mat4 <T> y) {
+template <typename T, unsigned S>
+inline matN <T,S> operator* ( T x, matN <T,S> y) {
     return y             * x;
 }
-template <typename T>
-inline mat4 <T> operator- ( T x, mat4 <T> y) {
+template <typename T, unsigned S>
+inline matN <T,S> operator- ( T x, matN <T,S> y) {
     return -y            + x;
 }
-template <typename T>
-inline mat4 <T> operator/ ( T x, mat4 <T> y) {
+template <typename T, unsigned S>
+inline matN <T,S> operator/ ( T x, matN <T,S> y) {
     return reciprocal(y) * x;
 }
 
-// matrix-vector product (vector is assumed to be a column vector)
-template <typename T, typename U>
-const vec4<T> operator* ( const mat4<U>& m, const vec4<T>& v ) { return vec4( v[0] * m[0][0] + v[1] * m[0][1] + v[2] * m[0][2] + v[3] * m[0][3],
-                                                                              v[0] * m[1][0] + v[1] * m[1][1] + v[2] * m[1][2] + v[3] * m[1][3],
-                                                                              v[0] * m[2][0] + v[1] * m[2][1] + v[2] * m[2][2] + v[3] * m[2][3],
-                                                                              v[0] * m[3][0] + v[1] * m[3][1] + v[2] * m[3][2] + v[3] * m[3][3] ); }
+// matrix-vector product (v is a column vector)
+template <typename T, typename U, unsigned S>
+const vecN<T,S> operator* ( const matN<U,S>& m, const vecN<T,S>& v ) { 
+	vecN<T,S> out;
+	for ( auto i : std::views::iota(0u,S) ) 
+		for ( auto j : std::views::iota(0u,S) ) 
+			out[i] += m[i][j] * v[j]; 
+	return out;
+}
 
 // hadamard product (element-wise multiplication)
-template <typename T, typename U>
-const mat4<T> hadamard ( const mat4<U>& m, const mat4<T>& n ) { return m.hadamard(n); }
+template <typename T, typename U, unsigned S>
+const matN<T,S> hadamard ( const matN<U,S>& m, const matN<T,S>& n ) { return m.hadamard(n); }
+
+
+
+// aliases for 2-, 3- and 4-dimensional vectors
+template <typename T>
+using vec2 = vecN<T,2>;
+
+template <typename T>
+using vec3 = vecN<T,3>;
+
+template <typename T>
+using vec4 = vecN<T,4>;
+
+template <typename T>
+using mat2 = matN<T,2>;
+
+template <typename T>
+using mat3 = matN<T,3>;
+
+template <typename T>
+using mat4 = matN<T,4>;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 template<class T>
 inline T fMaxOf2(T min, T max)
