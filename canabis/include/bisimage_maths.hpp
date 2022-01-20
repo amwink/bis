@@ -28,7 +28,7 @@
 #include<iostream>
 #include<algorithm>
 
-#include "jacobi_pd.hpp"
+
 
 namespace bis {
 
@@ -118,19 +118,25 @@ class vecN {
             {};																			// default constructor
 
         vecN ( T x, T y ): data ( S )
-            { data[0] = x; data[1] = y; }												// constructor from 2 scalars
+            { data[0] = x; if (S>1) data[1] = y; }										// constructor from 2 scalars
 
         vecN ( T x, T y, T z ): data ( S )
-            { data[0] = x; data[1] = y; if (S>2) data[2] = z; }							// constructor from 3 scalars
+            { data[0] = x; if (S>1) data[1] = y; if (S>2) data[2] = z; }				// constructor from 3 scalars
 
         vecN ( T x, T y, T z, T t ): data ( S )
-            { data[0] = x; data[1] = y; if (S>2) data[2] = z; if (S>3) data[3] = t; }	// constructor from 4 scalars
+            { data[0] = x; if (S>1) data[1] = y; 
+						   if (S>2) data[2] = z; 
+						   if (S>3) data[3] = t; }										// constructor from 4 scalars
 
         vecN ( T* xyz             ): data ( S )
-            { std::copy (xyz, xyz+S, data.begin() ); }									// constructor from pointer
+            { std::copy_n (xyz, S, data.begin() ); }									// constructor from pointer
+
+		vecN ( std::initializer_list<T> l ): data ( S )
+			{ auto R = ( S < l.size() ) ? S : l.size();
+			  std::copy_n ( l.begin(), R, data.begin() ); }								// constructor from initialiser list
 
         vecN ( const vecN<T,S>& rhs ): data ( S )
-            { std::copy ( rhs.data.begin(), rhs.data.end(), data.begin() ); }			// copy constructor
+            { std::copy_n ( rhs.data.begin(), S, data.begin() ); }						// copy constructor
 
 		template <unsigned R>
         vecN ( vecN<T,R>& rhs ): data ( S )
@@ -298,9 +304,11 @@ class matN {
         matN (                      ): data ( S*S )
             {};																	// default constructor
         matN ( T x0,   T y0,													// constructor from  4 scalars
-               T x1,   T y1 ): data( S*S ) {
+               T x1,   T y1 ): data( S*S ) 
+			{ if ( S>1 ) {
 			  data[ 0] = x0; data[ 1] = y0;
-			  data[ 2] = x1; data[ 3] = y1;
+			  data[ 2] = x1; data[ 3] = y1;			  
+			  }
 			}
         matN ( T x0,   T y0,   T z0,
                T x1,   T y1,   T z1,
@@ -326,6 +334,10 @@ class matN {
         matN ( T* xyz                 ): data ( S*S )
             { std::copy (xyz, xyz+S*S, data.begin() ); }						// constructor from pointer
 
+		matN ( std::initializer_list<T> l ): data ( S*S )
+			{ auto R = ( S*S < l.size() ) ? S*S : l.size();
+			  std::copy_n ( l.begin(), R, data.begin() ); }						// constructor from initialiser list
+			  
         matN ( const matN<T,S>& rhs   ): data ( S*S )
             { std::copy ( rhs.data.begin(), rhs.data.end(), data.begin() ); }	// copy constructor
 

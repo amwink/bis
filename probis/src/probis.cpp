@@ -98,31 +98,30 @@ int main ( int argc, char* argv[] )
     // Test vectors and matrices
     //
 
-    float  
-        v[2] = { 10, 20 };
-    double 
-        m[4] = { 1, 2, 2, 1 };
-        // m[4] = { 1, -2, -2, 3 };
-    vec2<float>  
-        v2_1 ( v );
-    mat2<double> 
-        m2_1 ( m );
 
 if ( do_2d || do_3d || do_4d ) {
 
-		if ( do_2d ) {
-			
-			// vectors        
+	// vectors        
+	vec2<float>
+		v2_1 ( { 1, 1 } ),
+		v2_2 ( v2_1 );
+
+	
+		if ( do_2d ) {	
+
 			std::cout << "2D\nvector v2_1: \t";
 			std::cout << v2_1 << "\n";
-
-			auto v2_2 ( v2_1 );
-			v2_2 += 1.;
 
 			std::cout << "vector v2_2: \t" << v2_2 << " \n";
 			std::cout << "v2_2 + 2 v2_1: \t" << v2_2 + v2_1 * float(2.) << " \n";
 			
-			// matrices			
+			// matrices		
+			mat2<float>
+				m2_1 ( { 1, 2, 2, 1 } ),
+				m2_2 ( - m2_1 );
+			m2_2[0][0] = m2_1[0][0];
+			m2_2[1][1] += 4;
+				
 			std::cout << "matrix m2_1: \n" << m2_1 << " \n";
 			std::cout << "inverse m2_1: \n" << m2_1.inverse() << " \n";
 			
@@ -131,11 +130,6 @@ if ( do_2d || do_3d || do_4d ) {
 			std::cout << "values\n"  << e2_1.v << "\n";
 			std::cout << "vectors\n" << e2_1.m << "\n";
 			
-			auto m2_2 (m2_1);
-			m2_2 *= -1;
-			m2_2[0][0] = m2_1[0][0];
-			m2_2[1][1] += 4;
-
 			std::cout << "matrix m2_2: \n" << m2_2 << " \n";
 			std::cout << "inverse m2_2: \n" << m2_2.inverse() << " \n";			
 			auto e2_2 = m2_2.diagonalise_sym();
