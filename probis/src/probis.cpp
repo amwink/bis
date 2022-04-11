@@ -84,11 +84,11 @@ int main ( int argc, char* argv[] )
     std::cout << "hello from canabis! \n";
 
     auto 
-        do_2d      = true,	// test 2D vectors & matrices
-        do_3d      = true,	// test 3D vectors & matrices ( only tested if do_2d )
-        do_4d      = true,	// test 3D vectors & matrices ( only tested if do_3d )    
+        do_2d      = false,	// test 2D vectors & matrices
+        do_3d      = false,	// test 3D vectors & matrices ( only tested if do_2d )
+        do_4d      = false,	// test 3D vectors & matrices ( only tested if do_3d )    
         do_nifti   = false,	// test nifti file interactions
-        do_dicom   = false,	// test dicom import
+        do_dicom   = true,	// test dicom import
         do_reduce  = false,	// test dimensionality reducer 
 		do_maxtree = false;	// test maxtree
 
@@ -270,6 +270,9 @@ if ( do_2d || do_3d || do_4d ) {
 
 		for ( auto dicomzip: dicomzips ) {
 			
+			// only for some files
+			if ( dicomzip == "/home/amwink/software/cpp/bis/data/dicom/siemensDicom/dwi_dwi/MRI_DTI_MR-EPAD-SingleShell-DTI48-19_.zip" ) {
+			
 			std::cout << "unpacking " << dicomzip << "... " << std::endl;
 			
 			auto 
@@ -301,7 +304,9 @@ if ( do_2d || do_3d || do_4d ) {
 			std::string 
 				newname = dcmslice.substr ( 0, dcmslice.find_last_of('.') ) + ".nii.gz";
 			test_dicom.write ( newname );   
-		
+					
+			} // only for some files
+			
 		} // for dicomzip
 	
 	} // if do_dicom

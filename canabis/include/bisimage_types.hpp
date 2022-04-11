@@ -3,6 +3,10 @@
 
 
 
+#include <stdio.h>
+
+
+
 /** \brief bis: namespace for multidimensional images
  *
  *  This namespace contains the bisimage class for

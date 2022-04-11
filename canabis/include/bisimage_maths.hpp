@@ -179,24 +179,24 @@ class vecN {
 		std::vector<T> *getdata() { return &data; }										// data vector
 
 		// left += and + for elements and vectors
-		const vecN<T,S>& operator+= ( const T& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] += rhs; return (*this); }
+		const vecN<T,S>& operator+= ( const T& rhs ) { for ( size_t i = 0; i < S; i++ ) data[i] += rhs; return (*this); }
 		template <typename U>
-		const vecN<T,S>& operator+= ( const vecN<U,S>& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] += rhs[i]; return (*this); }
+		const vecN<T,S>& operator+= ( const vecN<U,S>& rhs ) { for ( size_t i = 0; i < S; i++ ) data[i] += rhs[i]; return (*this); }
 		template <typename U>
 		const vecN<T,S> operator+   ( const U& rhs ) { auto out = (*this); out += rhs; return out;                   }
 
 		// left -= and - for elements and vectors
-		const vecN<T,S>& operator-= ( const T& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] -= rhs;    return (*this); }
+		const vecN<T,S>& operator-= ( const T& rhs ) { for ( size_t i = 0; i < S; i++ ) data[i] -= rhs;    return (*this); }
 		template <typename U>
-		const vecN<T,S>& operator-= ( const vecN<U,S>& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] -= rhs[i]; return (*this); }
+		const vecN<T,S>& operator-= ( const vecN<U,S>& rhs ) { for ( size_t i = 0; i < S; i++ ) data[i] -= rhs[i]; return (*this); }
 		template <typename U>
 		const vecN<T,S> operator-   ( const U& rhs ) { auto out = (*this); out -= rhs; return out; }
 		const vecN<T,S> operator-   ( void ) { auto out = (*this); out *= -1; return out; }
 
 		// left *= and * for elements and vectors
-		const vecN<T,S>& operator*= ( const T& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] *= rhs;    return (*this); }
+		const vecN<T,S>& operator*= ( const T& rhs ) { for ( size_t i = 0; i < S; i++ ) data[i] *= rhs;    return (*this); }
 		template <typename U>
-		const vecN<T,S>& operator*= ( const vecN<U,S>& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] *= rhs[i]; return (*this); }
+		const vecN<T,S>& operator*= ( const vecN<U,S>& rhs ) { for ( size_t i = 0; i < S; i++ ) data[i] *= rhs[i]; return (*this); }
 
 		// multiplication by scalar
 		const vecN<T,S> operator*   ( const T& rhs ) { auto out = (*this); out *= rhs; return out;                   }
@@ -209,16 +209,16 @@ class vecN {
 		template <typename U>
 		vecN<T,S> operator*( const matN<U,S>& m ) const { 
 			vecN<T,S> out;
-			for ( auto i : std::views::iota(0u, S) )		// column in m
-				for ( auto j : std::views::iota(0u, S) )	// column in (*this), row in m
+			for ( size_t i = 0; i < S; i++ )		// column in m
+				for ( size_t j = 0; j < S; j++ )	// column in (*this), row in m
 					out.data[i] += data[i] * m [i][j];
 			return out; 
 		}
 
 		// left /= and / for elements and vectors
-		const vecN<T,S>& operator/= ( const T& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] /= rhs;    return (*this); }
+		const vecN<T,S>& operator/= ( const T& rhs ) { for ( size_t i = 0; i < S; i++ ) data[i] /= rhs;    return (*this); }
 		template <typename U>
-		const vecN<T,S>& operator/= ( const vecN<U,S>& rhs ) { for ( auto i : std::views::iota(0u, S) ) data[i] /= rhs[i]; return (*this); }
+		const vecN<T,S>& operator/= ( const vecN<U,S>& rhs ) { for ( size_t i = 0; i < S; i++ ) data[i] /= rhs[i]; return (*this); }
 		template <typename U>
 		const vecN<T,S> operator/   ( const U& rhs ) { vecN<T,S> out(*this); out /= rhs; return out;                   }
 
@@ -248,7 +248,7 @@ class vecN {
 template <typename T, unsigned S>
 std::ostream& operator<<(std::ostream& out, const vecN<T,S>& v) { 
 	out << "( ";
-	for ( auto i : std::views::iota(0u, S) )
+	for ( size_t i = 0; i < S; i++ )
 		out << v.data[i] << ", "; 
 	out << "\b\b )"; // use two ANSI backspace characters '\b' to overwrite final ", "
 	return out; 
@@ -256,7 +256,7 @@ std::ostream& operator<<(std::ostream& out, const vecN<T,S>& v) {
 
 template <typename T, unsigned S>
 std::istream& operator>>(std::istream& in , vecN<T,S> &v) { 
-	for ( auto i : std::views::iota(0u, S) )
+	for ( size_t i = 0; i < S; i++ )
 		in >> v.data[i]; 
 	return in;
 }
@@ -351,8 +351,8 @@ class matN {
 		const T* operator[] (const size_t offset) const { return &data[S*offset]; }		// read  access
 
 		// same functionality for inside the class
-		      T& at(const size_t r, const size_t c )        { return data.at ( S*r + c ); } 
-		const T& at(const size_t r, const size_t c ) const  { return data.at ( S*r + c ); }   
+		      T& at(const size_t r, const size_t c )        { return data.at ( S*r + c ); } 		// write access
+		const T& at(const size_t r, const size_t c ) const  { return data.at ( S*r + c ); }   		// read  access
 
 		// (in) equality
 		bool operator== (matN& v) { return ( data == v.data ); }
@@ -368,7 +368,7 @@ class matN {
 																		 																		
 		const matN<T,S> eye ( const T v = 1 ) const {											// identity
 			matN<T,S> out; 
-			for ( auto i : std::views::iota(0u, S) )
+			for ( size_t i = 0; i < S; i++ )
 				out[i][i] = v;
 			return out;
 		}
@@ -378,18 +378,18 @@ class matN {
 		std::vector<T> *getdata() { return &data; }											// data vector
 
 		// left += and + for elements and vectors
-		const matN<T,S>& operator+= ( const T& rhs )       { for ( auto i : std::views::iota(0u, S*S) ) data[i] += rhs;    return (*this); }
+		const matN<T,S>& operator+= ( const T& rhs )       { for ( size_t i = 0; i < S*S; i++ ) data[i] += rhs;    return (*this); }
 		template <typename U>
-		const matN<T,S>& operator+= ( const matN<U,S>& rhs ) { for ( auto i : std::views::iota(0u, S*S) ) data[i] += rhs.data[i]; return (*this); }
+		const matN<T,S>& operator+= ( const matN<U,S>& rhs ) { for ( size_t i = 0; i < S*S; i++ ) data[i] += rhs.data[i]; return (*this); }
 
 		template <typename U>
 		const matN<T,S> operator+   ( const U& rhs )       { auto out = (*this); out += rhs; return out;                   }
 
 		// left -= and - for elements and vectors
-		const matN<T,S>& operator-= ( const T& rhs )       { for ( auto i : std::views::iota(0u, S*S) ) data[i] -= rhs; return (*this); }
+		const matN<T,S>& operator-= ( const T& rhs )       { for ( size_t i = 0; i < S*S; i++ ) data[i] -= rhs; return (*this); }
 
 		template <typename U>
-		const matN<T,S>& operator-= ( const matN<U,S>& rhs ) { for ( auto i : std::views::iota(0u, S*S) ) data[i] -= rhs.data[i]; return (*this); }
+		const matN<T,S>& operator-= ( const matN<U,S>& rhs ) { for ( size_t i = 0; i < S*S; i++ ) data[i] -= rhs.data[i]; return (*this); }
 
 		template <typename U>
 		const matN<T,S> operator-   ( const U& rhs )       { matN<T,S> out(*this); out -= rhs; return out;                   }
@@ -399,32 +399,42 @@ class matN {
 		template <typename U>
 		matN<T,S> operator*=( matN<U,S>& m ) { 			
 			matN<T,S> product;
-			for ( auto i : std::views::iota(0u, S) )
-				for ( auto j : std::views::iota(0u, S) )
-					for ( auto k : std::views::iota(0u, S) )
+			for ( size_t i = 0; i < S; i++ )
+				for ( size_t j = 0; j < S; j++ )
+					for ( size_t k = 0; k < S; k++ )
 						product.data [ S*i + j ] += data [ S*i + k ] * m.data [ S*k + i ];
 			return (*this);
 		}
 
 		// left *= for scalar
-		const matN<T,S>& operator*= ( const T& rhs )       { for ( auto i : std::views::iota(0u, S*S) ) data[i] *= rhs; return (*this);    }
+		const matN<T,S>& operator*= ( const T& rhs )       { for ( size_t i = 0; i < S*S; i++ ) data[i] *= rhs; return (*this);    }
 		
 		// operator * (matrix pruduct for matrix rhs, element-wise for scalar rhs)
 		template <typename U>
-		const matN<T,S> operator*   ( matN<U,S>& rhs )       { auto out = (*this); out *= rhs; return out;                        }
+		const matN<T,S> operator*   ( matN<U,S>& rhs )     { auto out = (*this); out *= rhs; return out;                        }
 		const matN<T,S> operator*   ( const T& rhs )       { auto out = (*this); out *= rhs; return out;                        }
 
 		// hadamard product (element-wise multiplication)
 		template <typename U>
-		const matN<T,S>& hadamard ( const matN<U,S>& rhs ) { for ( auto i : std::views::iota(0u, S*S) ) data[i] *= rhs.data[i]; return (*this); }
+		const matN<T,S>& hadamard ( const matN<U,S>& rhs ) 		{ for ( size_t i = 0; i < S*S; i++ ) data[i] *= rhs.data[i]; return (*this); }
 
 		// left /= and / for elements and matrices
-		const matN<T,S>& operator/= ( const T& rhs )       { for ( auto i : std::views::iota(0u, S*S) ) data[i] /= rhs;    return (*this); }
+		const matN<T,S>& operator/= ( const T& rhs )			{ for ( size_t i = 0; i < S*S; i++ ) data[i] /= rhs; return (*this); }
 		template <typename U>
-		const matN<T,S>& operator/= ( const matN<U,S>& rhs ) { (*this) *= rhs.inverse(); return (*this); }
+		const matN<T,S>& operator/= ( const matN<U,S>& rhs )	{ (*this) *= rhs.inverse(); return (*this); }
 
 		template <typename U>
-		const matN<T,S> operator/   ( const U& rhs )       { auto out = (*this); out /= rhs; return out;                        }
+		const matN<T,S> operator/   ( const U& rhs )			{ auto out = (*this); out /= rhs; return out;                        }
+
+
+
+		//////////////////////////////////////////////////////////////
+		// code that computes the inverse of 2x2, 3x3 and 4x4 matrices
+		//////////////////////////////////////////////////////////////
+		// 
+		// external code may be linked for larger sizes
+
+
 
 		// cofactors -- required for adjoint (adjugate) matrix
 		const T cofactor_ij ( size_t i, size_t j ) {			
@@ -441,12 +451,12 @@ class matN {
 			for (size_t k=0; k<j; k++) jj[k] = k;
 			for (size_t k=j; k<3; k++) jj[k] = k+1;
 
-			(fac)  = (*this)[ii[0]][jj[0]] * (  (*this)[ii[1]][jj[1]] * (*this)[ii[2]][jj[2]]
-											 -  (*this)[ii[1]][jj[2]] * (*this)[ii[2]][jj[1]] );
-			(fac) -= (*this)[ii[0]][jj[1]] * (  (*this)[ii[1]][jj[0]] * (*this)[ii[2]][jj[2]]
-											 -  (*this)[ii[1]][jj[2]] * (*this)[ii[2]][jj[0]] );
-			(fac) += (*this)[ii[0]][jj[2]] * (  (*this)[ii[1]][jj[0]] * (*this)[ii[2]][jj[1]]
-											 -  (*this)[ii[1]][jj[1]] * (*this)[ii[2]][jj[0]] );
+			(fac)  = at ( ii[0], jj[0] ) * ( at ( ii[1], jj[1] ) * at ( ii[2], jj[2] )
+										  -  at ( ii[1], jj[2] ) * at ( ii[2], jj[1] ) );
+			(fac) -= at ( ii[0], jj[1] ) * ( at ( ii[1], jj[0] ) * at ( ii[2], jj[2] )
+										  -  at ( ii[1], jj[2] ) * at ( ii[2], jj[0] ) );
+			(fac) += at ( ii[0], jj[2] ) * ( at ( ii[1], jj[0] ) * at ( ii[2], jj[1] ) 
+										  -  at ( ii[1], jj[1] ) * at ( ii[2], jj[0] ) );
 
 			/* compute sign */
 			size_t k = i+j;
@@ -463,10 +473,10 @@ class matN {
 			
 			switch ( S ) {
 				case ( 4 ): 
-					return ( cofactor_ij ( 0, 0 ) * (*this)[0][0] +
-							 cofactor_ij ( 0, 1 ) * (*this)[0][1] +
-							 cofactor_ij ( 0, 2 ) * (*this)[0][2] +
-							 cofactor_ij ( 0, 3 ) * (*this)[0][3] );
+					return ( cofactor_ij ( 0, 0 ) * at ( 0, 0 ) +
+							 cofactor_ij ( 0, 1 ) * at ( 0, 1 ) +
+							 cofactor_ij ( 0, 2 ) * at ( 0, 2 ) +
+							 cofactor_ij ( 0, 3 ) * at ( 0, 3 ) );
 					break;				
 				case ( 3 ):
 					return (  data[0] * ( data[4] * data[8] - data[5] * data[7] )
@@ -485,8 +495,8 @@ class matN {
 			matN<T,S> out;
 			switch ( S ) {
 				case ( 4 ): 
-					for ( auto i : std::views::iota(0u, S) )
-						for ( auto j : std::views::iota(0u, S) )
+					for ( size_t i = 0; i < S; i++ )
+						for ( size_t j = 0; j < S; j++ )
 							out[j][i] = scale * cofactor_ij ( i, j );
 					return out;
 					break;
@@ -517,13 +527,16 @@ class matN {
             return (*this) * std::numeric_limits<T>::quiet_NaN();
     }
 
-    ////////////////////////////////////////////////////////////////
-	// code that omputes eigenvectors of ->only symmetric<- matrices
-    ////////////////////////////////////////////////////////////////
+
+
+    /////////////////////////////////////////////////////////////////
+	// code that computes eigenvectors of ->only symmetric<- matrices
+    /////////////////////////////////////////////////////////////////
 	// 
 	// the Jacobi algorithm applies successive Givens rotations
 	// to the largest above-diagonal element, setting them to 0
 	// until the matrix is diagonal. 
+
 
 
 	// for a given row, find index of maximum after the diagonal
@@ -743,9 +756,9 @@ void ApplyRotLeft( 	rotation r,	// angle
 template <typename U, unsigned S>
 std::ostream& operator<<(std::ostream& out, const matN<U,S>& m) { 
 	out << "( ";
-	for ( auto i : std::views::iota(0u, S) ) {
+	for ( size_t i = 0; i < S; i++ ) {
 		if ( i ) out << "  ";
-		for ( auto j : std::views::iota(0u, S) )
+		for ( size_t j = 0; j < S; j++ )
 			out << m[i][j] << ", ";
 		out << "\b\b\n";
 	}
@@ -755,7 +768,7 @@ std::ostream& operator<<(std::ostream& out, const matN<U,S>& m) {
 
 template <typename U, unsigned S>
 std::istream& operator>>(std::istream& in , matN<U,S> &v) { 
-	for ( auto i : std::views::iota(0u, S*S) )
+	for ( size_t i = 0; i < S*S; i++ )
 		in >> v.data[i]; 
 	return in;
 }
@@ -782,8 +795,8 @@ inline matN <T,S> operator/ ( T x, matN <T,S> y) {
 template <typename T, typename U, unsigned S>
 const vecN<T,S> operator* ( const matN<U,S>& m, const vecN<T,S>& v ) { 
 	vecN<T,S> out;
-	for ( auto i : std::views::iota(0u,S) ) 
-		for ( auto j : std::views::iota(0u,S) ) 
+	for ( size_t i = 0; i < S; i++ ) 
+		for ( size_t j = 0; j < S; j++ ) 
 			out[i] += m[i][j] * v[j]; 
 	return out;
 }

@@ -43,6 +43,50 @@
 
 
 
+/** \brief	remove whitespace from the start and end of a string -- does not need to be in the bis namespace
+ */
+inline std::string trim ( std::string the_str ) {
+
+		the_str.erase (    the_str.find_last_not_of  ( "\t\n\v\f\r " ) +1 );
+		the_str.erase ( 0, the_str.find_first_not_of ( "\t\n\v\f\r " )    );
+		
+		return the_str;
+	
+}
+
+
+
+/** \brief	parse a (simple) format-string by replacing ecape sequences by non-printing characters
+ * 			https://stackoverflow.com/questions/27617903/how-to-parse-a-string-with-raw-escape-sequences
+ */
+std::string parse(const std::string& s)
+{
+    std::stringstream  ss{""};
+
+    for(size_t i = 0; i < s.length(); i++)
+    {
+        if (s.at(i) == '\\')
+        {
+            switch(s.at(i + 1))
+            {
+                case 'n':  ss << '\n'; i++; break;
+                case 't':  ss << '\t'; i++; break;
+                case 'r':  ss << '\r'; i++; break;
+                case '"':  ss << '\"'; i++; break;
+                default:   ss << '\\';      break;
+            }       
+        }
+        else 
+        {
+            ss << s.at(i);
+        }
+    }
+
+    return ss.str();
+}
+
+
+
 /** \brief bis: namespace for multidimensional images
  *
  *  This namespace contains the bisimage class for
@@ -368,6 +412,22 @@ class bisimage {
                                  strides.begin(),
                                  0 );
         return data [ offset ] ;
+    }
+
+	// The same functionality as above, inside the class (as a function)
+    inline const value_type& at ( std::initializer_list < size_t > const& indices ) const {
+        size_t const offset =
+            std::inner_product ( indices.begin(), indices.end(),
+                                 strides.begin(),
+                                 0 );
+        return data.at ( offset );
+    }
+    inline value_type& at ( std::initializer_list < size_t > const& indices ) {
+        size_t const offset =
+            std::inner_product ( indices.begin(), indices.end(),
+                                 strides.begin(),
+                                 0 );
+        return data.at ( offset);
     }
 
     /** brief compute indices at offset

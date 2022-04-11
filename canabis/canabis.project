@@ -11,8 +11,6 @@
     <File Name="src/bisimage.cpp"/>
   </VirtualDirectory>
   <VirtualDirectory Name="include">
-    <File Name="include/jacobi_pd.hpp"/>
-    <File Name="include/matrix_alloc_jpd.hpp"/>
     <File Name="include/bisbidsimage.hpp"/>
     <File Name="include/bismaxtree.hpp"/>
     <File Name="include/bisimage_types.hpp"/>

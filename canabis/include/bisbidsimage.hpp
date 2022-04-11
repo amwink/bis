@@ -15,7 +15,7 @@
  *         cannot be stored in NIfTI headers; these are
  *         stored in a JSON 'sidecar' with the same name
  */
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
 
@@ -26,13 +26,15 @@ using json = nlohmann::json;
  *  creating and processing multidimensional images.
  */
 
+
+
 namespace bis {
 		
 	std::string sidecarname ( std::string niftifile ) {
 	
 		std::string 
 			jsonfname = std::regex_replace ( niftifile, std::regex ( ".nii.gz" ), ".json" );  // replace .nii.gz for compressed files
-		jsonfname = std::regex_replace ( jsonfname,  std::regex ( ".nii" ),    ".json" );     //   in case it wasn't compressed
+		jsonfname = std::regex_replace ( jsonfname,  std::regex ( ".nii" ),    ".json" );     // in case it wasn't compressed
 	
 		return ( jsonfname );
 	
