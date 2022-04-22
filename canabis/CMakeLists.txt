@@ -8,14 +8,13 @@ project(canabis)
 # This setting is useful for providing JSON file used by CodeLite for code completion
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
-set(CONFIGURATION_NAME "Debug")
-
-set(CL_WORKSPACE_DIRECTORY ..)
 # Set default locations
-set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/${CL_WORKSPACE_DIRECTORY}/cmake-build-${CONFIGURATION_NAME}/lib)
+set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../cmake-build-Debug/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
+
+set(CONFIGURATION_NAME "Debug")
 
 # Projects
 
@@ -45,7 +44,7 @@ include_directories(
 
 
 # Compiler options
-add_definitions(-std=gnu++2a)
+add_definitions(-std=gnu++20)
 add_definitions(-g)
 add_definitions(-O0)
 add_definitions(-Wall)
@@ -76,7 +75,7 @@ set ( CXX_SRCS
 
 set_source_files_properties(
     ${CXX_SRCS} PROPERTIES COMPILE_FLAGS 
-    " -std=gnu++2a -g -O0 -Wall")
+    " -std=gnu++20 -g -O0 -Wall")
 
 if(WIN32)
     enable_language(RC)

@@ -414,7 +414,7 @@ void parseCSA ( const unsigned char* csabuffer , unsigned long csalength, json& 
 		std::ofstream ofile ( "/tmp/" + jsonfield + ".json" );
 		ofile << std::setw(4) << sidecar [ jsonfield ] << std::endl;
 		ofile.close();
-	}	
+	}
 	
 	return;
 	
@@ -551,11 +551,9 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 				number_fread = 1;
 			superclass::sidecar["NumberOfTemporalPositions"] = number_fread;
 
-			// size of a / the slice
-			im_size.push_back(atoi(getItemStringArray(tmpdata, DCM_Rows).c_str()));
-			superclass::sidecar["Rows"] = im_size.back();
-			im_size.push_back(atoi(getItemStringArray(tmpdata, DCM_Columns).c_str()));
-			superclass::sidecar["Columns"] = im_size.back();
+			// size of a / the slice in X (rows) and Y (columns)
+			im_size.push_back( atoi ( getItemStringArray ( tmpdata, DCM_Rows).c_str()    ) );
+			im_size.push_back( atoi ( getItemStringArray ( tmpdata, DCM_Columns).c_str() ) );
 
 			// voxel size
 			voxsize[0] =
@@ -661,9 +659,7 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 		std::vector<double> 
 			slicetimes;
 
-		// Assuming increasing patient coordinate system (PCS) directions:
-		// LPH -- increase x -> go towards the left ear (L)
-		//     -- 		
+		// Siemens mosaic requires special treatment
 		if ( mosaic ) {
 
 			const uint8_t
@@ -683,7 +679,19 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 			if ( csalength >= slicesinfile )
 				for ( unsigned i = 0; i < csalength; i++ )
 					slicetimes.push_back ( tmpbuf_fd [ i ] );      // put the times in the vector
+					
+			auto
+				mos_rows = std::ceil ( std::sqrt ( slicesinfile ) ),
+				mos_cols = std::ceil ( slicesinfile / mos_rows );
+			im_size[0] /= mos_rows;		
+			im_size[1] /= mos_cols;
+
 		} // if mosaic
+
+		// now we know the X size (rows) and Y size (columns) of a slice, even for mosaic
+		superclass::sidecar [ "Rows"    ] = im_size[0];
+		superclass::sidecar [ "Columns" ] = im_size[1];
+
 		
 		for ( size_t s = 0; s<slicesinfile; s++ ) {
 			
@@ -815,7 +823,8 @@ template <class value_type>
 std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<slicestats>& series_slicedata) {
 
     auto num_files  = series_slicedata.size(); 	// number of correct files with correct UID
-	if ( mosaic ) num_files /= superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Size" ];
+	if ( mosaic ) 
+		num_files /= static_cast<int> ( superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Size" ] );
 
     // Determine the #slices in a volume by checking
     // when the slice position is back at its initial value.
@@ -828,7 +837,7 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
     std::cout << "counted slices (before returning to pos 0): " << sli << std::endl;
 
     // double check if this is still true at the end
-    sli = num_files - 2;
+    sli = series_slicedata.size() - 2;
     for(auto startpos = (series_slicedata[num_files - 1]).sliloc; sli > 0; sli--)
 	if((series_slicedata[sli]).sliloc == startpos) { 
 		sli++;
@@ -856,10 +865,10 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
     // continue if the first and last volume have the same #slices
     // and if the #files is the product of #slices/vol and #volumes
     auto vol = unsigned(superclass::sidecar["Volumes"]);
-    if((unsigned(superclass::sidecar["Slices"]) == sli) && (num_files == (sli * vol))) {
+    if( ( unsigned ( superclass::sidecar [ "Slices" ] ) == sli ) && ( num_files == ( sli * vol ) ) ) {
 
 	// output size at least 2d, check if 3d or 4d and if yes add those dimensions
-	if(sli > 1) {
+	if ( sli > 1 ) {
 	    im_size.push_back(sli);
 
 	    // if one acquisition has more than one volume, change acquisition index to volume index
@@ -881,10 +890,10 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
 
     // re-order slice aquisition sequence
     for(unsigned i = 0; i < num_files; i++)
-	(series_slicedata[i]).acqnumber = i / int(superclass::sidecar["Slices"]);
+		( series_slicedata[i] ).acqnumber = i / int ( superclass::sidecar [ "Slices" ] );
 
     // resize the data array in bisimage for putting the voxels in
-    superhyper::newsizes({im_size[0], im_size[1], sli, vol}); // first 2 always exist, 3 and 4 don't
+    superhyper::newsizes( { im_size[0], im_size[1], sli, vol } ); // first 2 always exist, 3 and 4 don't
 
     // sort by aqcuisition number and if that is the same (multiple vol/timepoint), slice
     // position: sorting by instance number is not working in the case of interleaved stacks

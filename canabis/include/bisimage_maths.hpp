@@ -301,22 +301,22 @@ class matN {
 			sz = S;
 
     public:
-        matN (                      ): data ( S*S )
+        matN (): data ( S * S )
             {};																	// default constructor
         matN ( T x0,   T y0,													// constructor from  4 scalars
                T x1,   T y1 ): data( S*S ) 
 			{ if ( S>1 ) {
-			  data[ 0] = x0; data[ 1] = y0;
-			  data[ 2] = x1; data[ 3] = y1;			  
+			  at ( 0, 0 ) = x0; at ( 0, 1 ) = y0;
+			  at ( 1, 0 ) = x1; at ( 1, 1 ) = y1;			  
 			  }
 			}
         matN ( T x0,   T y0,   T z0,
                T x1,   T y1,   T z1,
                T x2,   T y2,   T z2 ): data ( S*S )
             { if ( S>2 ) {														// constructor from 16 scalars
-			  data[ 0] = x0; data[ 1] = y0; data[ 2] = z0;
-              data[ 3] = x1; data[ 4] = y1; data[ 5] = z1;
-              data[ 6] = x2; data[ 7] = y2; data[ 8] = z2;
+			  at ( 0, 0 ) = x0; at ( 0, 1 ) = y0; at ( 0, 2 ) = z0;
+              at ( 1, 0 ) = x1; at ( 1, 1 ) = y1; at ( 1, 2 ) = z1;
+              at ( 2, 0 ) = x2; at ( 2, 1 ) = y2; at ( 1, 2 ) = z2;
 			  }
 			}    
         matN ( T x0,   T y0,   T z0,   T t0,
@@ -324,10 +324,10 @@ class matN {
                T x2,   T y2,   T z2,   T t2,
                T x3,   T y3,   T z3,   T t3 ): data ( S*S )
             { if ( S>3 ) {														// constructor from 16 scalars
-			  data[ 0] = x0; data[ 1] = y0; data[ 2] = z0; data[ 3] = t0;
-              data[ 4] = x1; data[ 5] = y1; data[ 6] = z1; data[ 7] = t1;
-              data[ 8] = x2; data[ 9] = y2; data[10] = z2; data[11] = t2;
-              data[12] = x3; data[13] = y3; data[14] = z3; data[15] = t3;
+			  at ( 0, 0 ) = x0; at ( 0, 1 ) = y0; at ( 0, 2 ) = z0; at ( 0, 3 ) = t0;
+              at ( 1, 0 ) = x1; at ( 1, 1 ) = y1; at ( 1, 2 ) = z1; at ( 1, 3 ) = t1;
+              at ( 2, 0 ) = x2; at ( 2, 1 ) = y2; at ( 2, 2 ) = z2; at ( 2, 3 ) = t2;
+              at ( 3, 0 ) = x3; at ( 3, 1 ) = y3; at ( 3, 2 ) = z3; at ( 3, 3 ) = t3;
 			  }
 			}    
 
@@ -416,15 +416,15 @@ class matN {
 
 		// hadamard product (element-wise multiplication)
 		template <typename U>
-		const matN<T,S>& hadamard ( const matN<U,S>& rhs ) 		{ for ( size_t i = 0; i < S*S; i++ ) data[i] *= rhs.data[i]; return (*this); }
+		const matN<T,S>& hadamard ( const matN<U,S>& rhs ) { for ( size_t i = 0; i < S*S; i++ ) data[i] *= rhs.data[i]; return (*this); }
 
 		// left /= and / for elements and matrices
-		const matN<T,S>& operator/= ( const T& rhs )			{ for ( size_t i = 0; i < S*S; i++ ) data[i] /= rhs; return (*this); }
+		const matN<T,S>& operator/= ( const T& rhs )	   { for ( size_t i = 0; i < S*S; i++ ) data[i] /= rhs; return (*this); }
 		template <typename U>
 		const matN<T,S>& operator/= ( const matN<U,S>& rhs )	{ (*this) *= rhs.inverse(); return (*this); }
 
 		template <typename U>
-		const matN<T,S> operator/   ( const U& rhs )			{ auto out = (*this); out /= rhs; return out;                        }
+		const matN<T,S> operator/   ( const U& rhs )	   { auto out = (*this); out /= rhs; return out;                        }
 
 
 
@@ -672,14 +672,14 @@ void ApplyRot(	rotation r, // angle
 	  // s = sin(θ)
 	  // t = tan(θ) (which should be <= 1.0)
 
-	  // Compute the diagonal elements of M which have changed:
+	  // Compute the diagonal elements of M that have changed:
 	  at(i,i) -= r.t * at(i,j);
 	  at(j,j) += r.t * at(i,j);
 	  // Note: This is algebraically equivalent to:
 	  // M[i][i] = c*c*M[i][i] + s*s*M[j][j] - 2*s*c*M[i][j]
 	  // M[j][j] = s*s*M[i][i] + c*c*M[j][j] + 2*s*c*M[i][j]
 
-	  //Update the off-diagonal elements of M which will change (above the diagonal)
+	  //Update the off-diagonal elements of M that will change (above the diagonal)
 
 	  //assert(i < j);
 	  at(i,j) = 0.0;
@@ -745,7 +745,7 @@ void ApplyRotLeft( 	rotation r,	// angle
   
   } // for v
 
-} // ApplyRotateLeft
+} // ApplyRotLeft
 
 
 

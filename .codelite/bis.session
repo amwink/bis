@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Session Name="/home/amwink/software/cpp/bis/bis.workspace">
-  <int Value="0" Name="m_selectedTab"/>
+  <int Value="1" Name="m_selectedTab"/>
   <wxString Value="/home/amwink/software/cpp/bis/bis.workspace" Name="m_workspaceName"/>
   <TabInfoArray Name="TabInfoArray">
     <TabInfo>
       <wxString Value="/home/amwink/software/cpp/bis/canabis/include/bisdicomimage.hpp" Name="FileName"/>
-      <int Value="796" Name="FirstVisibleLine"/>
-      <int Value="817" Name="CurrentLine"/>
+      <int Value="479" Name="FirstVisibleLine"/>
+      <int Value="513" Name="CurrentLine"/>
+      <wxArrayString Name="Bookmarks"/>
+      <IntVector Name="CollapsedFolds"/>
+    </TabInfo>
+    <TabInfo>
+      <wxString Value="/home/amwink/software/cpp/bis/probis/src/probis.cpp" Name="FileName"/>
+      <int Value="384" Name="FirstVisibleLine"/>
+      <int Value="273" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>
@@ -25,7 +32,7 @@
       <bool Value="0" Name="regex"/>
       <bool Value="0" Name="is_temp"/>
       <bool Value="1" Name="is_enabled"/>
-      <long Value="0" Name="ignore_number"/>
+      <int Value="0" Name="ignore_number"/>
       <wxString Value="" Name="conditions"/>
       <int Value="0" Name="origin"/>
     </SerializedObject>
