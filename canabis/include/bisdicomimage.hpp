@@ -206,8 +206,8 @@ void parseProtocol ( const char* protbuffer , unsigned long protlength, json& si
 				lhs ="." + lhs;											// leading struct
 				static const std::regex rgx_pattern("(\\.)[a-z]*([A-Z])");
 				lhs = std::regex_replace(lhs, rgx_pattern, "$1$2");		// remove lowercase letters before field
-				std::replace(lhs.begin(), lhs.end(), '.', '/');			// turn dot to path -> nlohman makes struct
-				std::replace(lhs.begin(), lhs.end(), '[', '/');			// turn bracket to path -> nlohman makes array
+				std::replace(lhs.begin(), lhs.end(), '.', '/');			// turn dot to path -> nlohmann makes struct
+				std::replace(lhs.begin(), lhs.end(), '[', '/');			// turn bracket to path -> nlohmann makes array
 				std::replace(lhs.begin(), lhs.end(), ']', '/');			// and numbers -> indices, accounting for gaps
 				lhs = std::regex_replace(lhs, std::regex("//"), "/");	// empty index/struct -> core dump
 				lhs.erase ( lhs.find_last_not_of ( "/" ) +1 );			// remove leading lowercase			
@@ -692,7 +692,6 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 		superclass::sidecar [ "Rows"    ] = im_size[0];
 		superclass::sidecar [ "Columns" ] = im_size[1];
 
-		
 		for ( size_t s = 0; s<slicesinfile; s++ ) {
 			
 			slicestats *currentslice = ( &(seriesslicedata[added_slices]) );
@@ -749,7 +748,7 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 			
 			// compute the z position as projected along the normal
 			(*currentslice).slipos =
-				(slice_pos & slice_norm); // for type vec3 (see bisimage_maths) the & operator gives dot product
+				(slice_pos & slice_norm); // for type vec3 (see bisimage_maths.hpp) the & operator gives dot product
 
 			// add copy of current slice for next
 			if ( s < ( slicesinfile - 1 ) )
