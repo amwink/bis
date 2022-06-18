@@ -1,3 +1,4 @@
+-I/home/amwink/software/cpp/bis/biskits
 -I/usr/include/c++/10
 -I/usr/include/x86_64-linux-gnu/c++/10
 -I/usr/include/c++/10/backward
@@ -5,4 +6,5 @@
 -I/usr/local/include
 -I/usr/include/x86_64-linux-gnu
 -I/usr/include
--I/home/amwink/software/cpp/bis/biskits
+-target
+x86_64-linux-gnu

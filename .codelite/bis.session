@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Session Name="/home/amwink/software/cpp/bis/bis.workspace">
-  <int Value="1" Name="m_selectedTab"/>
+  <int Value="0" Name="m_selectedTab"/>
   <wxString Value="/home/amwink/software/cpp/bis/bis.workspace" Name="m_workspaceName"/>
   <TabInfoArray Name="TabInfoArray">
     <TabInfo>
       <wxString Value="/home/amwink/software/cpp/bis/canabis/include/bisdicomimage.hpp" Name="FileName"/>
-      <int Value="483" Name="FirstVisibleLine"/>
-      <int Value="515" Name="CurrentLine"/>
+      <int Value="789" Name="FirstVisibleLine"/>
+      <int Value="762" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>
     <TabInfo>
       <wxString Value="/home/amwink/software/cpp/bis/probis/src/probis.cpp" Name="FileName"/>
-      <int Value="272" Name="FirstVisibleLine"/>
-      <int Value="302" Name="CurrentLine"/>
+      <int Value="0" Name="FirstVisibleLine"/>
+      <int Value="0" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>
@@ -21,8 +21,8 @@
   <SerializedObject Name="m_breakpoints">
     <long Value="1" Name="Count"/>
     <SerializedObject Name="Breakpoint0">
-      <wxString Value="/home/amwink/software/cpp/bis/probis/src/probis.cpp" Name="file"/>
-      <int Value="303" Name="lineno"/>
+      <wxString Value="/home/amwink/software/cpp/bis/canabis/include/bisdicomimage.hpp" Name="file"/>
+      <int Value="776" Name="lineno"/>
       <wxString Value="" Name="function_name"/>
       <wxString Value="" Name="memory_address"/>
       <int Value="1" Name="bp_type"/>
@@ -32,7 +32,7 @@
       <bool Value="0" Name="regex"/>
       <bool Value="0" Name="is_temp"/>
       <bool Value="1" Name="is_enabled"/>
-      <int Value="0" Name="ignore_number"/>
+      <long Value="0" Name="ignore_number"/>
       <wxString Value="" Name="conditions"/>
       <int Value="0" Name="origin"/>
     </SerializedObject>

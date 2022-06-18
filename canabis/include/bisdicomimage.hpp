@@ -750,10 +750,25 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 			(*currentslice).slipos =
 				(slice_pos & slice_norm); // for type vec3 (see bisimage_maths.hpp) the & operator gives dot product
 
-			// add copy of current slice for next
-			if ( s < ( slicesinfile - 1 ) )
-				seriesslicedata.push_back ( seriesslicedata.back() );
-			added_slices++;
+			// add copy of current slice for next - 
+			// we only do this if our file has more than one slices 
+			// (i.e. inside the 'for s' loop) to have a new 
+			if ( s < ( slicesinfile - 1 ) ) {
+				slicestats 
+					last_copy {
+						seriesslicedata.back().filename,		//	string	filename, for single-slice dicom every slice has a unique file name
+						seriesslicedata.back().innumber,			//	int	instance number: should be from 1 to #files
+						seriesslicedata.back().acqnumber,			//	int	acquisition number
+						seriesslicedata.back().aqtime,				//	float	acquisition time
+						seriesslicedata.back().slipos,				//	float	slice position, computed from ImagePOsitionPatient and ImageOrientationPatient
+						seriesslicedata.back().sliloc,				//	float 	slice location, backup method sometimes (eg Philips DTI) using SliceLocation
+						seriesslicedata.back().index				//	int	index, for multi-slice dicoms (e.g. mosaic), this number can be higher than 0
+					}; // last_copy 
+				seriesslicedata.push_back ( last_copy );				
+				added_slices++; // max value: 1 less than #slice in file
+			} // slicesinfile
+
+
 			
 		} // for s slicesinfile
 
@@ -780,7 +795,7 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 
 		// Check if slice 0 and 1 still have the same slice position. This happens in e.g. Philips DWI
 		// (see https://github.com/rordenlab/dcm2niix/tree/master/Philips), stable sort by SliceLocation.
-		// Stable sort respects previous ordering where possible.
+		// Stable sort respects previous ordering for ties.
 		if ( seriesslicedata[0].slipos == seriesslicedata[1].slipos ) {
 			char fac = ( seriesslicedata[0].slipos < seriesslicedata[added_slices - 1].slipos ) ? 1 : -1;
 			std::stable_sort( begin(seriesslicedata), end(seriesslicedata),
@@ -801,12 +816,16 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 	
     auto diag = false;
     if (diag) {
-	// print diagnostics -- for weird slice orderings like
-	//							Philips fMRI -> slice 0 of every volume, slice 1 of every volume, etc
-	for(auto slicedata : seriesslicedata)
-	    std::cout << std::setprecision(6) 
-				  << slicedata.filename << "\t" << slicedata.innumber << "\t" << slicedata.acqnumber << "\t"
-	              << slicedata.aqtime   << "\t" << slicedata.slipos   << "\t" << slicedata.sliloc   << std::endl;
+		
+		// print diagnostics -- for weird slice orderings like
+		//							Philips fMRI   -> slice 0 of every volume, slice 1 of every volume, etc
+		//                          Siemens Mosaic -> multiple slices turned into patchwork
+
+		for(auto slicedata : seriesslicedata)
+			std::cout << std::setprecision(6) 
+					<< slicedata.filename << "\t" << slicedata.innumber << "\t" << slicedata.acqnumber << "\t"
+					<< slicedata.aqtime   << "\t" << slicedata.slipos   << "\t" << slicedata.sliloc   << std::endl;
+				  
     }
 
     return (seriesslicedata);
@@ -821,7 +840,9 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 template <class value_type>
 std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<slicestats>& series_slicedata) {
 
-    auto num_files  = series_slicedata.size(); 	// number of correct files with correct UID
+    auto 
+		num_slices  = series_slicedata.size(), // number of correct slices with correct UID
+		num_files   = num_slices;
 	if ( mosaic ) 
 		num_files /= static_cast<int> ( superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Size" ] );
 
@@ -837,12 +858,12 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
 
     // double check if this is still true at the end
     sli = series_slicedata.size() - 2;
-    for(auto startpos = (series_slicedata[num_files - 1]).sliloc; sli > 0; sli--)
+    for(auto startpos = (series_slicedata[num_slices - 1]).sliloc; sli > 0; sli--)
 	if((series_slicedata[sli]).sliloc == startpos) { 
 		sli++;
 	    break;
 	}
-    sli = num_files - sli; // counting from n-1 down to 0
+    sli = num_slices - sli; // counting from n-1 down to 0
 
     std::cout << "counted slices (counting backwards from end): " << sli << std::endl;
 
@@ -850,21 +871,21 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
     // position of slice 1 is lower than slice 0 then -1, otherwise +1.
     // THIS NEEDS TO CORRESPOND TO THE SLICE NORMAL for determining rotate 180 or flip
 	float 
-		slice_delta = series_slicedata[1].sliloc - series_slicedata[0].sliloc;
+		slice_delta = series_slicedata[1].slipos - series_slicedata[0].slipos;
     superclass::sidecar["Slicedirection"] = static_cast<int>(bis::signum<float>( slice_delta ));
 	
     // in the case of 2D files, #volumes = #files / (slices per volume)
     // TR of a volume = start time of volume 1 - start time of volume 0
     // (we know sometimes images are acquired in pairs - cater for that)
-    superclass::sidecar["Volumes"] = num_files / int(superclass::sidecar["Slices"]);
+    superclass::sidecar["Volumes"] = num_slices / int(superclass::sidecar["Slices"]);
     superclass::sidecar["RepetitionTime"] = ((series_slicedata[2 * sli]).aqtime - (series_slicedata[0]).aqtime) / 2.;
 
-    std::cout << superclass::sidecar << std::endl;
+    // std::cout << superclass::sidecar << std::endl;
 
     // continue if the first and last volume have the same #slices
     // and if the #files is the product of #slices/vol and #volumes
     auto vol = unsigned(superclass::sidecar["Volumes"]);
-    if( ( unsigned ( superclass::sidecar [ "Slices" ] ) == sli ) && ( num_files == ( sli * vol ) ) ) {
+    if( ( unsigned ( superclass::sidecar [ "Slices" ] ) == sli ) && ( num_slices == ( sli * vol ) ) ) {
 
 	// output size at least 2d, check if 3d or 4d and if yes add those dimensions
 	if ( sli > 1 ) {
@@ -875,9 +896,9 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
 	    if(vol > 1) {
 
 		// check if sizes based on header data and pixel data are the same
-		if(vol != (num_files / sli)) {
+		if(vol != (num_slices / sli)) {
 		    std::cerr << "DICOM tag for #vol different than #sli / #vol";
-		    vol = num_files / sli; // only workable formula for pixel data
+		    vol = num_slices / sli; // only workable formula for pixel data
 		}
 		im_size.push_back(vol);
 
@@ -888,7 +909,7 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
     } // #files is the product of #vol * *#(slices/vol)
 
     // re-order slice aquisition sequence
-    for(unsigned i = 0; i < num_files; i++)
+    for(unsigned i = 0; i < num_slices; i++)
 		( series_slicedata[i] ).acqnumber = i / int ( superclass::sidecar [ "Slices" ] );
 
     // resize the data array in bisimage for putting the voxels in

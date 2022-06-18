@@ -1,10 +1,3 @@
--I/usr/include/c++/10
--I/usr/include/x86_64-linux-gnu/c++/10
--I/usr/include/c++/10/backward
--I/usr/lib/gcc/x86_64-linux-gnu/10/include
--I/usr/local/include
--I/usr/include/x86_64-linux-gnu
--I/usr/include
 -I/home/amwink/software/cpp/bis/canabis
 -I/home/amwink/software/cpp/bis
 -I/home/amwink/software/cpp/bis/json/include
@@ -12,4 +5,13 @@
 -I/home/amwink/software/cpp/bis/nifti/include
 -I/home/amwink/software/cpp/bis/z
 -I/home/amwink/software/cpp/bis/znz/include
--std=gnu++2a
+-I/usr/include/c++/10
+-I/usr/include/x86_64-linux-gnu/c++/10
+-I/usr/include/c++/10/backward
+-I/usr/lib/gcc/x86_64-linux-gnu/10/include
+-I/usr/local/include
+-I/usr/include/x86_64-linux-gnu
+-I/usr/include
+-std=gnu++20
+-target
+x86_64-linux-gnu

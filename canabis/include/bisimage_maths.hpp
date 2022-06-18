@@ -121,8 +121,9 @@ class vecN {
             { data[0] = x; if (S>1) data[1] = y; }										// constructor from 2 scalars
 
         vecN ( T x, T y, T z ): data ( S )
-            { data[0] = x; if (S>1) data[1] = y; if (S>2) data[2] = z; }				// constructor from 3 scalars
-
+            { data[0] = x; if (S>1) data[1] = y;										// constructor from 3 scalars
+						   if (S>2) data[2] = z; }
+						   
         vecN ( T x, T y, T z, T t ): data ( S )
             { data[0] = x; if (S>1) data[1] = y; 
 						   if (S>2) data[2] = z; 
