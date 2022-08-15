@@ -301,8 +301,10 @@ if ( do_2d || do_3d || do_4d ) {
 			
 			// make a dicom object of this DICOM's series and write as a bids image
 			bis::bisdicom<unsigned short> test_dicom ( dcmslice );
+
 			std::string 
 				newname = dcmslice.substr ( 0, dcmslice.find_last_of('.') ) + ".nii.gz";
+			std::cout << "writing: " << newname << "... " << std::endl;	
 			test_dicom.write ( newname );   
 					
 			} // only for some files

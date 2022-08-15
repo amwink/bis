@@ -249,9 +249,11 @@ class vecN {
 template <typename T, unsigned S>
 std::ostream& operator<<(std::ostream& out, const vecN<T,S>& v) { 
 	out << "( ";
-	for ( size_t i = 0; i < S; i++ )
-		out << v.data[i] << ", "; 
-	out << "\b\b )"; // use two ANSI backspace characters '\b' to overwrite final ", "
+	for ( size_t i = 0; i < S; i++ ) {
+		out << v.data[i];
+		if ( i < ( S-1 ) ) out << ", "; 
+	}
+	out << " )"; // use two ANSI backspace characters '\b' to overwrite final ", "
 	return out; 
 }
 
@@ -760,10 +762,10 @@ std::ostream& operator<<(std::ostream& out, const matN<U,S>& m) {
 	for ( size_t i = 0; i < S; i++ ) {
 		if ( i ) out << "  ";
 		for ( size_t j = 0; j < S; j++ )
-			out << m[i][j] << ", ";
-		out << "\b\b\n";
+			out << m[i][j] << ", "; 
+		if ( i < ( S-1 ) ) out << ", \n";
 	}
-	out << ")"; // use two ANSI backspace characters '\b' to overwrite final ", "
+	out << " )"; // use two ANSI backspace characters '\b' to overwrite final ", "
 	return out; 
 }
 

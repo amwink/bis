@@ -107,71 +107,195 @@ double
 	return -1.;
 }
 
-/** \brief getDicomData: import DICOM slices/bricks/timeseries from file
+/** \brief getbinarydata: import DICOM slices/bricks/timeseries from file
  *
  *  template parameters:
- *  DataVec:        the target container (e.g., a vector<double>)
+ *  DataVec:		the target container (e.g., a vector<double>)
  *
- *  function parameters:
- *  nim:            pointer to a nifti_image
- *  nifti_blob:     pointer to the data buffer belonging to the nifti_image
- *
- *  filelist:       list of input dicom images
- *  bufsize:        number of pixels
- *  vec:            target container
+ *  file_list:		list of the input DICOM files for this image
+ *  bufsize:		size of the pixel data container of this image
+ *  vec:			pointer to the pixel data container of this image
+ *  slicesinfile:	number of slices stored per DICOM file ( >1 for e.g. MOSAIC files )
+ *  mosaic_side:	the side of a mosaic (square number >= number of slices)
+ *  dcmdata:		pointer to the data properties (required for mosaic)
  *
  */
 template <typename DataVec>
 
-void getDicomData(std::vector<std::string> file_list, unsigned bufsize, DataVec* vec) {
+void getbinarydata(std::vector<std::string> file_list, unsigned bufsize, DataVec* vec, long slicesinfile, size_t mosaic_side = 0, DcmDataset* const dcmdata = nullptr ) {
 
-    std::vector<unsigned char> buffer;      // for reading binary data
-    size_t slicesize = 0, bufferoffset = 0; // for reading pixels
-    int bitsperpixel = 8;                   // usually changed to 16 (intensities to about 2000)
-    unsigned bytesperpixel = 1;             // usually changed to 2
+    std::vector<unsigned char> readbuffer;  // for reading binary data
+    std::vector<unsigned char> keepbuffer;  // for storing binary data
+    std::vector<unsigned char> swapbuffer;  // for reordering tiles -> slices (mosaic)
+    size_t 
+		bpp = 8,							// bits/pixel read from file
+		copysize = 0,                       // (mosaic) size of image to copy
+		imagesize = 0,						// size of a slice on file in bytes
+		bufferoffset = 0,					// offset of a slice in the image 
+		bitsperpixel = bpp,					// bpp quantised to multiples of 8
+		bytesperpixel = bitsperpixel / 8;	// bytes per pixel = bits / 8 
 
-    for(size_t im = 0; im < file_list.size(); im++) {
+    for ( size_t im = 0; im < file_list.size(); im += slicesinfile ) {					// also account for files with >1 slice
 
-	DicomImage* image = new DicomImage(file_list[im].c_str());
+		std::cout << "loading image " << im << "...\n";
 
-	// determine some stats in the first image
-	if(!im) {
+		DicomImage* image = new DicomImage(file_list[im].c_str());						// read the next DICOM file
 
-	    auto bpp = image->getDepth(), // assume this is the same for all
-	        bitsperpixel = (bpp > 32) ? 64 : (bpp > 16) ? 32 : (bpp > 8) ? 16 : 8;
-	    bytesperpixel = bitsperpixel / 8;
+		std::cout << "image " << im << ", " << file_list[im] << ", loaded\n";
 
-	    slicesize = image->getOutputDataSize(); // likewise here
+		// determine some stats in the first image
+		if(!im) {
 
-	    buffer.resize(slicesize * file_list.size());
-	}
+			bpp = image->getDepth(), 													// Depth: bits/pixel
+			bitsperpixel = (bpp > 32) ? 64 : (bpp > 16) ? 32 : (bpp > 8) ? 16 : 8;		// round to multiples of 8
+			bytesperpixel = bitsperpixel / 8;
+			imagesize = image->getOutputDataSize();										// get #bytes used in memory
+			copysize = imagesize;
+			readbuffer.resize ( imagesize );											// binary 1 slice
+			keepbuffer.resize ( imagesize * file_list.size() / slicesinfile );			// total amount of bytes for all slices
 
-	// use frame 0 (last parameter)
-	if(!image->getOutputData(&buffer[bufferoffset], slicesize, 8, 0))
-	    std::cerr << "no bytes read at buffer position " << bufferoffset;
-	else
-	    bufferoffset += (slicesize / bytesperpixel);
+		}
 
-	delete(image);
+		std::cout << "stats for image " << im << " determined\n";
 
+		// use frame 0 (last parameter) for every image
+		if ( !image->getOutputData( &readbuffer[0], imagesize, 8, 0) )
+			
+			std::cerr << "no bytes read at buffer position " << bufferoffset;
+			
+		else {
+		
+			if ( mosaic_side >1 )	{														// if >1 tile -> reorganising necessary
+
+				std::cout << "mosaic size " << mosaic_side << " ...\n";
+
+				size_t
+					mosy = atoi ( getItemStringArray ( dcmdata, DCM_Columns).c_str() ),		// height of the super-slice of NxN tiled slices
+					sliy = mosy / mosaic_side;												// and height of tiles / slices in each N strip
+
+				// The slice strips (indicated with codes) are ordered per row
+				// in a mosaic (left) vs per slice in a 3D volume (right):
+				//  ______________					 ______________
+				// | A4 | B4 | C4 |					| C2 | C3 | C4 |
+				// | A3 | B3 | C3 |					| B3 | B4 | C1 |
+				// | A2 | B2 | C2 |					| A4 | B1 | B2 |
+				// |_A1_|_B1_|_C1_|					|_A1_|_A2_|_A3_|
+				//
+				// memory layout: > then ^
+				//
+				// This means: 
+				//   1. every 'horizontal' strips of <mosaic_side> tiles is independent
+				//   2. a for-loop over slices/tiles X rows inside the strip does the swap:
+				//      -- in the tile  representation (L), the row  (number) is the inner loop
+				//         A1, A2, A3, A4, B1, B2, B3, B4, C1, C2, C3, C4 
+				//      -- in the slice representation (R). the tile (letter) is the inner loop
+				//         A1, B1, C1, A2, B2, C2, A3, B3, C3, A4, B4, C4
+				//
+				// so with an extra working array of #strip slices, we can re-order the mosaic
+				// (using an array swap_table)
+				//
+				// It also meanse that if (say) tile C (in the last strip) is not used, the 
+				// image buffer for the parent image has no space for it: we cannot copy an
+				// 8x8-tile mosaic into a 63-slice volume. Some strips can be copied, some
+				// (partly) cannot (a 50-slice volume also results in an 8x8 mosaic, with one
+				// strip partly filled and one empty). 
+				//
+				// This is not a problem for the read buffer (which reads / stores a mosaic), 
+				// only for the keep buffer, which stores only the slices.
+
+				// in the swap table the index is the slicewise position, 
+				//             the coefficient is the tile-wise position
+				std::vector < size_t > swap_table ( mosy ); 
+				size_t counter = 0;
+				for ( size_t letter = 0; letter < mosaic_side; letter++ ) 
+					for ( size_t digit = 0; digit < sliy; digit++ )
+						swap_table [ counter++ ] = digit * mosaic_side + letter;
+
+				size_t
+					stripsize = imagesize / mosaic_side,			// size in bytes of a strip of tiles
+					tilerowsize = stripsize / sliy / mosaic_side;	// size in bytes of 1 row in 1 tile
+
+				// initialise the swap buffer, used for each strip separately
+				swapbuffer.resize ( stripsize );
+
+				// iterate over strips
+				//for ( size_t strip = 0; strip < mosaic_side; strip++ ) {
+				size_t strip = 0; {
+
+					std::cout << "strip " << strip << " of " << mosaic_side << "\n";
+					
+					auto 
+						stripstart = strip * imagesize / mosaic_side;
+
+					// copy one strip into the swap buffer
+					memcpy ( &swapbuffer [ 0 ], 
+							 &readbuffer [ stripstart ], 
+							 swapbuffer.size() );
+
+					size_t
+						source = 0,
+						target = 0;
+					counter = 0;												// same as in swap_table
+					//for ( size_t t = 0; t < mosaic_side; t++ )					// process the tiles in the strip
+					size_t t = 0;
+
+						//for ( size_t y = 0; y < sliy; y++ ) {					// process the  rows in the strip
+						size_t y = 0; {
+
+							source = swap_table [ counter++ ] * tilerowsize;		// tile-wise position in swap table
+							target += tilerowsize;									// slicewise position
+
+							std::cout << "copying swapbuffer " << source << " to readbuffer " << target << ", " << tilerowsize << "bytes\n";
+
+							// now copy the tile-wise row in the swap buffer to the slicewise row in the read buffer
+							//memcpy ( &readbuffer [ ( stripstart + target ) ], 
+							//		 &swapbuffer [ source ], 
+							//		 tilerowsize );
+
+						} // for y
+
+					// After all tile-rows have been re-organised,
+					// the strip in readbuffer is in slicewise order
+
+				} // for strip
+
+				// leave the swap buffer clean
+				swapbuffer.resize ( 0 );
+				copysize = imagesize * slicesinfile / mosaic_side / mosaic_side;
+  
+			} // if reorganisation
+
+			// write the read buffer to the keep buffer
+			// in the case of mosaic: write the first <slicesinfile> of the <mosaic_side> * <mosaic_side> tiles
+			std::memcpy ( &readbuffer [ 0 ], 
+			              &keepbuffer [ bufferoffset ], 
+						  copysize );
+			bufferoffset += copysize;
+			
+		} // if (each image) successfully read
+		
+		delete(image);
+		
     } // for im
 
     switch(bitsperpixel) {
 	case 64:
-	    pixelImport<unsigned long>	(buffer.data(), bufsize, vec);
+	    pixelImport<unsigned long>	(keepbuffer.data(), bufsize, vec);
 	    break;
 	case 32:
-	    pixelImport<unsigned>		(buffer.data(), bufsize, vec);
+	    pixelImport<unsigned>		(keepbuffer.data(), bufsize, vec);
 	    break;
 	case 16:
-	    pixelImport<unsigned short>	(buffer.data(), bufsize, vec);
+	    pixelImport<unsigned short>	(keepbuffer.data(), bufsize, vec);
 	    break;
 	case 8:
-	    pixelImport<unsigned char>	(buffer.data(), bufsize, vec);
+	    pixelImport<unsigned char>	(keepbuffer.data(), bufsize, vec);
 	    break;
     }
 
-    buffer.resize(0);
+    readbuffer.resize ( 0 );
+    keepbuffer.resize ( 0 );
+	
 }
 
 void parseProtocol ( const char* protbuffer , unsigned long protlength, json& sidecar, std::string csafield, std::string protfield ) {
@@ -189,7 +313,7 @@ void parseProtocol ( const char* protbuffer , unsigned long protlength, json& si
 	sbuffer >> instr; // ###
 		
 	json protocol;
-	while ( instr != "###" ) { // "### ASCCONV END ###": end of information block
+	while ( instr != "###" ) {   // "### ASCCONV END ###": end of information block
 	
 		std::getline ( sbuffer, lhs, '\n' );
 		// std::cout << lhs << "\n";
@@ -433,6 +557,7 @@ class bisdicom : public bisbids<value_type> {
     using superhyper = bisimage	<value_type>;
 
   private:
+
     vec3<float> 
 		voxsize, 
 		slice_orx, 
@@ -441,13 +566,20 @@ class bisdicom : public bisbids<value_type> {
 		slice_norm;
     std::vector<size_t> 
 		im_size;
-	bool	
-		mosaic = false;
+	size_t
+		slicesinfile = 1;
+
+	bool
+		mosaic  = false;
+	size_t
+		mossize = 0;
+	std::vector<double> 
+		mosslicetimes;
 
     // necessary forward declarations -- function definitions are after class definition for general tidiness
-    std::vector<slicestats>		get_seriesslicedata	( std::string dirname						);
-    std::vector<std::string> 	get_intensitydata	( std::vector<slicestats>& series_slicedata	);
-    void 						get_metadata		( std::vector<std::string>& series_files	);
+    std::vector<slicestats>		get_seriesslicedata	( std::string dirname						                                     );
+    std::vector<std::string> 	get_intensitydata	( std::vector<slicestats>& series_slicedata, DcmDataset* const dcmdata = nullptr );
+    void 						get_metadata		( std::vector<std::string>& series_files	                                     );
 
   public:
     bisdicom(std::string fname) { // constructor that reads from a file
@@ -482,7 +614,7 @@ class bisdicom : public bisbids<value_type> {
 		// use the file list to load the intensities in all the slices,
 		// according to the scan dimensions and directions 
 		// (this order is given via a sorted file list)
-		auto seriesfiles = get_intensitydata(seriesslicedata);
+		auto seriesfiles = get_intensitydata(seriesslicedata, dcmdata);
 
 		// The voxel data are in now. For BIDS, all that is left are the JSON and the NIfTI header
 		get_metadata(seriesfiles);
@@ -607,7 +739,7 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 				else
 					superclass::sidecar["SlicesDimension"] = 1;	// coronal
 			} else
-				superclass::sidecar["SlicesDimension"] = 0; 	// sagittal
+				    superclass::sidecar["SlicesDimension"] = 0;	// sagittal
 
 			// determine phase encoding direction
 			// assume column direction ( 1 in slice ), i.e. 1 if slice direction == 2, 2 otherwise
@@ -646,51 +778,40 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 				if ( s == "MOSAIC" )
 					mosaic = true;
 
-		} // ! added_slices
+			// If we have a Siemens mosaic file, read multiple slices from 1 file
+			// See https://github.com/InsightSoftwareConsortium/DCMTK/blob/master/dcmdata/data/private.dic
+			//     (this may have the number of slices in the string DCM_SourceImageSequence)
+			//  or https://dicom-parser.readthedocs.io/en/latest/siemens/private_tags.html
+			//     https://github.com/malaterre/GDCM/blob/master/Source/DataDictionary/privatedicts.xml
 
+			// Siemens mosaic requires special treatment
+			if ( mosaic ) {
 
-		// If we have a Siemens mosaic file, read multiple slices from 1 file
-		// See https://github.com/InsightSoftwareConsortium/DCMTK/blob/master/dcmdata/data/private.dic
-		//     (this may have the number of slices in the string DCM_SourceImageSequence)
-		//  or https://dicom-parser.readthedocs.io/en/latest/siemens/private_tags.html
-		//     https://github.com/malaterre/GDCM/blob/master/Source/DataDictionary/privatedicts.xml
-		size_t
-			slicesinfile = 1;
-		std::vector<double> 
-			slicetimes;
+				const uint8_t
+					*tmpbuffer;
+				const double
+					*tmpbuf_fd;
+				unsigned long 
+					csalength;
 
-		// Siemens mosaic requires special treatment
-		if ( mosaic ) {
+				slicesinfile = atoi ( getItemStringArray ( tmpdata, DcmTagKey ( 0x0019, 0x100a ) ).c_str() );
+				// std::cerr << "found mosaic with " << slicesinfile << " slices\n";
+				tmpdata->findAndGetUint8Array  ( DcmTagKey ( 0x0029, 0x1010 ), tmpbuffer, &csalength, OFTrue ); // image data
+				parseCSA ( tmpbuffer, csalength, superclass::sidecar, "imageCSA" );
+				tmpdata->findAndGetUint8Array  ( DcmTagKey ( 0x0029, 0x1020 ), tmpbuffer, &csalength, OFTrue ); // series data
+				parseCSA ( tmpbuffer, csalength, superclass::sidecar, "seriesCSA" );
+				tmpdata->findAndGetFloat64Array( DcmTagKey ( 0x0019, 0x1029 ), tmpbuf_fd, &csalength, OFTrue ); // MosaicRefAcqTimes
+				if ( csalength >= slicesinfile )
+					for ( unsigned i = 0; i < csalength; i++ )
+						mosslicetimes.push_back ( tmpbuf_fd [ i ] );	// put the times in the vector
+						
+				mossize = std::ceil ( std::sqrt ( slicesinfile ) );		// square number of tiles in mosaic
+				im_size [ 0 ] /= mossize;
+				im_size [ 1 ] /= mossize;
+				
+			} // if ( mosaic )
 
-			const uint8_t
-				*tmpbuffer;
-			const double
-				*tmpbuf_fd;
-			unsigned long 
-				csalength;
-
-			slicesinfile = atoi ( getItemStringArray ( tmpdata, DcmTagKey ( 0x0019, 0x100a ) ).c_str() );
-			// std::cerr << "found mosaic with " << slicesinfile << " slices\n";
-			tmpdata->findAndGetUint8Array  ( DcmTagKey ( 0x0029, 0x1010 ), tmpbuffer, &csalength, OFTrue ); // image data
-			parseCSA ( tmpbuffer, csalength, superclass::sidecar, "imageCSA" );			
-			tmpdata->findAndGetUint8Array  ( DcmTagKey ( 0x0029, 0x1020 ), tmpbuffer, &csalength, OFTrue ); // series data
-			parseCSA ( tmpbuffer, csalength, superclass::sidecar, "seriesCSA" );
-			tmpdata->findAndGetFloat64Array( DcmTagKey ( 0x0019, 0x1029 ), tmpbuf_fd, &csalength, OFTrue ); // MosaicRefAcqTimes
-			if ( csalength >= slicesinfile )
-				for ( unsigned i = 0; i < csalength; i++ )
-					slicetimes.push_back ( tmpbuf_fd [ i ] );      // put the times in the vector
-					
-			auto
-				mos_rows = std::ceil ( std::sqrt ( slicesinfile ) ),
-				mos_cols = std::ceil ( slicesinfile / mos_rows );
-			im_size[0] /= mos_rows;		
-			im_size[1] /= mos_cols;
-
-		} // if mosaic
-
-		// now we know the X size (rows) and Y size (columns) of a slice, even for mosaic
-		superclass::sidecar [ "Rows"    ] = im_size[0];
-		superclass::sidecar [ "Columns" ] = im_size[1];
+		} // if ( ! added_slices )
 
 		for ( size_t s = 0; s<slicesinfile; s++ ) {
 			
@@ -734,7 +855,7 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 														// for slices 1 and up these are in the header
 					(*currentslice).acqnumber = superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "SliceAcqOrder"     ] [ s ];				
 					(*currentslice).sliloc    = superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Pos"               ] [ s ];					
-					(*currentslice).aqtime   += slicetimes [ s-1 ];
+					(*currentslice).aqtime   += mosslicetimes [ s-1 ];
 				}
 				
 				// we assume thet innumber[0] is actually the mosaic number (copy for all slices)
@@ -765,17 +886,14 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 						seriesslicedata.back().index				//	int	index, for multi-slice dicoms (e.g. mosaic), this number can be higher than 0
 					}; // last_copy 
 				seriesslicedata.push_back ( last_copy );				
-				added_slices++; // max value: 1 less than #slice in file
 			} // slicesinfile
+			added_slices++; // max value: 1 less than #slice in file
 
-
-			
 		} // for s slicesinfile
 
 		// advance file list iterator
 		added_files++;
 		file_iter++;
-
 
     } // while file_iter
 
@@ -838,12 +956,12 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
  *
  */
 template <class value_type>
-std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<slicestats>& series_slicedata) {
+std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<slicestats>& series_slicedata, DcmDataset* const dcmdata ) {
 
     auto 
 		num_slices  = series_slicedata.size(), // number of correct slices with correct UID
 		num_files   = num_slices;
-	if ( mosaic ) 
+	if ( mosaic )                              // mosaic: multiple slices stored as chequerboard
 		num_files /= static_cast<int> ( superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Size" ] );
 
     // Determine the #slices in a volume by checking
@@ -922,7 +1040,6 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
     });
 
     // get a list of only the files, e.g. extracting from the structs
-    // see https://www.fluentcpp.com/2018/11/09/retrieve-firsts-collection-pairs for how this works for tuples
     std::vector<std::string> seriesfiles;
     std::transform(begin(series_slicedata), end(series_slicedata), std::back_inserter(seriesfiles),
                    [](auto const& fdata) { return (fdata).filename; });
@@ -930,8 +1047,9 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
     // check bisimage size
     std::cout << "data sizes: " << superhyper::getsize() << std::endl;
 
-    // read in the slices -- don't go and look, dirty bit of code...
-    getDicomData(seriesfiles, superhyper::data.size(), superhyper::getdata_ptr());
+    // read in the slices -- don't look, dirty bit of code... 
+	// ( num_slices / num_files ) > 1 if multiple slices in a dicom
+    // getbinarydata ( seriesfiles, superhyper::data.size(), superhyper::getdata_ptr(), num_slices / num_files, mossize, dcmdata );
 
     return (seriesfiles);
 }
@@ -943,35 +1061,95 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
 template <class value_type> void bisdicom<value_type>::get_metadata(std::vector<std::string>& series_files) {
 
     // the locals
-    DcmFileFormat tmpfile;
-    vec3<float> sli_0_pos, sli_n_pos;
-    auto sli = unsigned(superclass::sidecar["Slices"]) - 1;
+	mat4<float>
+		Rdcm;
+	vec3<float> 
+		sli_0_pos;
+	DcmFileFormat 
+		tmpfile;
+	tmpfile.loadFile(series_files[0].c_str());
+	DcmDataset* tmpdata = tmpfile.getDataset();
 
-    // get the slice position from volume 0 slice 0
-    tmpfile.loadFile(series_files[0].c_str());
-    DcmDataset* tmpdata = tmpfile.getDataset();
-    sli_0_pos[0] =
-        static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 0).c_str())));
-    sli_0_pos[1] =
-        static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 1).c_str())));
-    sli_0_pos[2] =
-        static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 2).c_str())));
+	// get the slice position from volume 0 slice 0
+	sli_0_pos[0] =
+		static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 0).c_str())));
+	sli_0_pos[1] =
+		static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 1).c_str())));
+	sli_0_pos[2] =
+		static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 2).c_str())));
 
-    // get the slice position from volume 0 slice N
-    tmpfile.loadFile(series_files[sli].c_str());
-    tmpdata = tmpfile.getDataset();
-    sli_n_pos[0] =
-        static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 0).c_str())));
-    sli_n_pos[1] =
-        static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 1).c_str())));
-    sli_n_pos[2] =
-        static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 2).c_str())));
+	if ( ! mosaic ) {
 
-    // Dicom voxel to mm transform
-    mat4<float> Rdcm(slice_orx[0] * voxsize[0], slice_ory[0] * voxsize[1], (sli_n_pos[0] - sli_0_pos[0]) / sli, sli_0_pos[0], 
-					 slice_orx[1] * voxsize[0], slice_ory[1] * voxsize[1], (sli_n_pos[1] - sli_0_pos[1]) / sli, sli_0_pos[1], 
-					 slice_orx[2] * voxsize[0], slice_ory[2] * voxsize[1], (sli_n_pos[2] - sli_0_pos[2]) / sli, sli_0_pos[2], 
-					 0, 0, 0, 1);
+		auto 
+			sli = unsigned ( superclass::sidecar["Slices"] ) - 1;
+		vec3<float> 
+			sli_n_pos;    
+
+		// get the slice position from volume 0 slice N
+		tmpfile.loadFile(series_files[sli].c_str());
+		tmpdata = tmpfile.getDataset();
+		sli_n_pos[0] =
+			static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 0).c_str())));
+		sli_n_pos[1] =
+			static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 1).c_str())));
+		sli_n_pos[2] =
+			static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 2).c_str())));
+			
+		// Dicom voxel to mm transform
+		Rdcm = mat4 <float>
+		       ( slice_orx[0] * voxsize[0], slice_ory[0] * voxsize[1], (sli_n_pos[0] - sli_0_pos[0]) / sli, sli_0_pos[0], 
+				 slice_orx[1] * voxsize[0], slice_ory[1] * voxsize[1], (sli_n_pos[1] - sli_0_pos[1]) / sli, sli_0_pos[1], 
+				 slice_orx[2] * voxsize[0], slice_ory[2] * voxsize[1], (sli_n_pos[2] - sli_0_pos[2]) / sli, sli_0_pos[2], 
+				 0, 0, 0, 1 );
+
+	} else { 
+
+		// See eq. 3 and 4 of https://doi.org/10.1016/j.jneumeth.2016.03.001
+		//     https://github.com/nipy/nibabel/blob/master/nibabel/nicom/dicomwrappers.py
+		// 
+		// Mosaic headers contain many position and orientation details, but
+		// the way to get the coordinate matrix described below uses both the
+		// minimal extra, and the most overlapping information compared to 
+		// the matrix computed from the main header tags.
+		
+		// for the 1st , X_m, Y_m, Z_m == X_1, Y_1, Z_1
+
+		/*
+		sli_0_pos = vec3 <float> ( superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Position" ] [ "Sag" ],
+								   superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Position" ] [ "Cor" ],
+								   superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Position" ] [ "Tra" ] );
+		*/
+		
+		std::cout << "slice 0 position:" << sli_0_pos << "\n";
+		
+		mat3 <float> mosmat3 ( slice_orx[0] * voxsize[0], slice_ory[0] * voxsize[1], sli_0_pos[0],
+							   slice_orx[1] * voxsize[0], slice_ory[1] * voxsize[1], sli_0_pos[1],
+							   slice_orx[2] * voxsize[0], slice_ory[2] * voxsize[1], sli_0_pos[2] );
+		vec3 <float> mosvec3 ( - ( ( mossize - 1 ) * im_size [ 0 ] ) / 2.0,
+		                       - ( ( mossize - 1 ) * im_size [ 1 ] ) / 2.0,
+							   0 );
+
+		for ( int i=0; i<3; i++ ) mosmat3 [1][i] *= -1;
+		sli_0_pos = mosmat3 * mosvec3;
+
+		std::cout << "eq3 vector: " << mosvec3 << "\n";
+		std::cout << "eq3 matrix: " << mosmat3 << "\n";
+		std::cout << "new slice 0 position:" << sli_0_pos << "\n";
+
+		// the JSON header should contain the necessary information (slice normal) for eq. 4
+		
+		vec3 <float> slicenormal ( superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Normal" ] [ "Sag" ],
+								   superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Normal" ] [ "Cor" ],
+								   superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Normal" ] [ "Tra" ] );
+		
+		Rdcm = mat4 <float>
+		       ( slice_orx[0] * voxsize[0], slice_ory[0] * voxsize[1], slicenormal[0] * voxsize[2], sli_0_pos[0], 
+				 slice_orx[1] * voxsize[0], slice_ory[1] * voxsize[1], slicenormal[1] * voxsize[2], sli_0_pos[1], 
+				 slice_orx[2] * voxsize[0], slice_ory[2] * voxsize[1], slicenormal[2] * voxsize[2], sli_0_pos[2], 
+				 0, 0, 0, 1 );
+
+	}
+	
 
     // NIfTI voxel to mm transform
     mat4<float> Rnii(	-Rdcm[0][0], -Rdcm[0][1], -Rdcm[0][2], -Rdcm[0][3], 
@@ -984,30 +1162,29 @@ template <class value_type> void bisdicom<value_type>::get_metadata(std::vector<
     // see https://github.com/rordenlab/dcm2niix/blob/master/console/nii_dicom.cpp#L2659
     if(superclass::sidecar["Slicedirection"] < 0) {
 
-	Rnii[0][1] *= -1; //
-	Rnii[1][1] *= -1; // flip the 2nd (y) column of Rnii
-	Rnii[2][1] *= -1; //
+		Rnii[0][1] *= -1; //
+		Rnii[1][1] *= -1; // flip the 2nd (y) column of Rnii
+		Rnii[2][1] *= -1; //
 
-	vec4<float> yflip_ori(0, im_size[1] - 1, 0, 0); // yflip_ori: vector of the new origin
-	yflip_ori = (Rnii * yflip_ori);
+		vec4<float> yflip_ori(0, im_size[1] - 1, 0, 0); // yflip_ori: vector of the new origin
+		yflip_ori = (Rnii * yflip_ori);
 
-	Rnii[0][3] -= yflip_ori[0]; //
-	Rnii[1][3] -= yflip_ori[1]; // restore origin after flipping
-	Rnii[2][3] -= yflip_ori[2]; //
+		Rnii[0][3] -= yflip_ori[0]; //
+		Rnii[1][3] -= yflip_ori[1]; // restore origin after flipping
+		Rnii[2][3] -= yflip_ori[2]; //
 
-	// and flip the voxels!
-	size_t st = (superhyper::sizes.size() > 3) ? superhyper::sizes[3] : 1,
-	       sz = (superhyper::sizes.size() > 2) ? superhyper::sizes[2] : 1,
-	       sy = (superhyper::sizes.size() > 1) ? superhyper::sizes[1] : 1,
-	       sx = (superhyper::sizes.size() > 0) ? superhyper::sizes[0] : 1, sy1 = sy - 1, sy2 = sy / 2;
-	for(size_t t = 0; t < st; t++)
-	    for(size_t k = 0; k < sz; k++)
-		for(size_t j = 0; j < sy2; j++)
-		    for(size_t i = 0; i < sx; i++)
-			std::swap<value_type>( superhyper::at ( { i, j, k , t } ), superhyper::at ( { i, sy1 - j, k, t } ) );
-			// std::swap<value_type>( (*this)[{i, j, k, t}], (*this)[{i, sy1 - j, k, t}]);
+		// and flip the voxels!
+		size_t st = (superhyper::sizes.size() > 3) ? superhyper::sizes[3] : 1,
+			   sz = (superhyper::sizes.size() > 2) ? superhyper::sizes[2] : 1,
+			   sy = (superhyper::sizes.size() > 1) ? superhyper::sizes[1] : 1,
+			   sx = (superhyper::sizes.size() > 0) ? superhyper::sizes[0] : 1, sy1 = sy - 1, sy2 = sy / 2;
+		for(size_t t = 0; t < st; t++)
+			for(size_t k = 0; k < sz; k++)
+			for(size_t j = 0; j < sy2; j++)
+				for(size_t i = 0; i < sx; i++)
+				std::swap<value_type>( superhyper::at ( { i, j, k , t } ), superhyper::at ( { i, sy1 - j, k, t } ) );
+				// std::swap<value_type>( (*this)[{i, j, k, t}], (*this)[{i, sy1 - j, k, t}]);
 			
-
     }; // if slicedirection
 
     //
@@ -1053,14 +1230,14 @@ template <class value_type> void bisdicom<value_type>::get_metadata(std::vector<
     } // if scl_slope
 
     // set cal_min and cal_max as highest and lowest nonzero values
-    auto ordered_nonzero = std::vector<value_type>(0);
-    for(auto intensity = superhyper::data.begin(); intensity != superhyper::data.end(); intensity++)
-	if(*intensity != 0)
-	    ordered_nonzero.push_back(*intensity);
-    std::sort(ordered_nonzero.begin(), ordered_nonzero.end());
-    supersuper::header->cal_min = float(ordered_nonzero.front());
-    supersuper::header->cal_max = float(ordered_nonzero.back());
-    ordered_nonzero.resize(0); // does that clear the memory?
+    //auto ordered_nonzero = std::vector<value_type>(0);
+    //for(auto intensity = superhyper::data.begin(); intensity != superhyper::data.end(); intensity++)
+	//if(*intensity != 0)
+	//    ordered_nonzero.push_back(*intensity);
+    //std::sort(ordered_nonzero.begin(), ordered_nonzero.end());
+    supersuper::header->cal_min = 0;//float(ordered_nonzero.front());
+    supersuper::header->cal_max = 10;//float(ordered_nonzero.back());
+    //ordered_nonzero.resize(0); // does that clear the memory?
 
     // assume mm as vox units, s as time units
     supersuper::header->xyz_units = NIFTI_UNITS_MM;
