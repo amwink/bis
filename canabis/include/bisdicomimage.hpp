@@ -18,6 +18,7 @@
 #include "dcmtk/dcmdata/dcistrmf.h"
 #include "dcmtk/dcmdata/dctk.h"
 #include "dcmtk/dcmimgle/dcmimage.h"
+#include "dcmtk/dcmdata/dcjson.h"
 
 /** \brief bis: namespace for multidimensional images
  *
@@ -760,6 +761,23 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 					((superclass::sidecar["PhaseEncodingDimension"] == 0) ? 2 : 0) :  //    coronal: either 0 or 2
 						(superclass::sidecar["PhaseEncodingDimension"] == 1) ? 2 : 1; //   sagittal: either 1 or 2
 						
+			// get rescale slope and intercept - first try DCM_RescaleSlope/Intercept
+			//        and if that does not work try DCM_RealWorldValueSlope/Intercept
+			float 
+				scl_slope = 1,
+				scl_inter = 0;
+			scl_slope = getItemDouble(tmpdata, DCM_RescaleSlope);
+			if (scl_slope)
+				scl_inter = getItemDouble(tmpdata, DCM_RescaleIntercept);
+			else {
+				scl_slope = getItemDouble(tmpdata, DCM_RealWorldValueSlope);
+				scl_inter = getItemDouble(tmpdata, DCM_RealWorldValueIntercept);
+			} // if scl_slope
+			if ( scl_slope <= 0 ) scl_slope = 1;
+			if ( scl_inter <  0 ) scl_inter = 0;
+			superclass::sidecar[ "RescaleSlope"     ] = scl_slope;
+			superclass::sidecar[ "RescaleIntercept" ] = scl_inter;
+
 			// if this is a multislice image (mosaic, advanced dicom or other) 
 			// store that in the JSON for later use: geometry adjustments etc.
 			DcmElement 
@@ -777,6 +795,14 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 			for ( auto s: image_types ) 
 				if ( s == "MOSAIC" )
 					mosaic = true;
+
+			// We may want to store the DICOM tags that we can find in the JSON sidecar
+			std::stringstream 
+				dcm_json;
+			DcmJsonFormatCompact
+				fmt ( OFFalse ); // True: print meta-info
+			tmpfile.writeJson ( dcm_json, fmt );
+			superclass::sidecar [ "dicom" ] = json::parse ( dcm_json );
 
 			// If we have a Siemens mosaic file, read multiple slices from 1 file
 			// See https://github.com/InsightSoftwareConsortium/DCMTK/blob/master/dcmdata/data/private.dic
@@ -932,6 +958,87 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 
 	}
 	
+	// set the matrix Rdcm, the coordinate transform 
+	// between voxel indices and world coordiinates
+	
+	// first file with the lowest slice position
+	// and use its coordinates for the bounding box
+	DcmFileFormat tmpfile;
+	tmpfile.loadFile ( seriesslicedata[0].filename.c_str() ); 
+	DcmDataset* const tmpdata = tmpfile.getDataset();
+	slice_pos[0] = static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 0).c_str())));
+	slice_pos[1] = static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 1).c_str())));
+	slice_pos[2] = static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 2).c_str())));
+
+    // the locals that are required
+	mat4<float>
+		Rdcm,
+		Rvox;
+	vec3<float> 
+		dim ( im_size[0], im_size[1], im_size[2] );
+
+	// set columns 1..3 to slice orientations (X and Y) and slice normal, respectively
+	Rdcm.getcol ( slice_orx,  0 );
+	Rdcm.getcol ( slice_ory,  1 );
+	Rdcm.getcol ( slice_norm, 2 );
+	Rdcm[3][3] = 1;
+	
+	// set diagonal of rvox to voxel sizes
+	Rvox[0][0] = voxsize[0];
+	Rvox[1][1] = voxsize[1];
+	Rvox[2][2] = voxsize[2];
+	Rvox[3][3] = 1;
+	
+	// multiply
+	Rdcm *= Rvox;
+
+	// now add the slice position as the 
+	Rdcm.getcol( slice_pos, 3 );
+
+	// For Siemens mosaic, slice_pos is the corner of the mosaic.
+	// This is much further away from the origin than a slice so
+	// it is necessary to correct column 3.
+	if ( mosaic and ( mossize > 1 ) ) {
+
+		vec4 <float> 
+			corr1 (	(mossize - 1) * dim[0] / 2, 	// correction in pixels from
+					(mossize - 1) * dim[1] / 2,		// mosaic-cornet to slice-corner
+					0,
+					1 ),
+			corr2 ( Rdcm * corr1 );					// corrected world space
+		Rdcm.getcol ( corr2, 3 );					// set this as Rdcm colunn 4
+		
+		// Now check if each dimension 'has a voxel size'
+		// 
+		//
+		corr1.getcol ( Rdcm, 2 );					// the slice direction of Rdcm (corr1) vs the slice direction in CSA (corr2)
+		corr2[0] = static_cast<float> ( superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Normal" ] [ "Sag" ] );
+		corr2[1] = static_cast<float> ( superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Normal" ] [ "Cor" ] );
+		corr2[2] = static_cast<float> ( superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Normal" ] [ "Tra" ] );
+		
+		auto 
+			m1 = 0, 
+			m2 = 0;
+		for ( size_t i = 1; i < 3; i++ ) {
+			if ( fabs ( corr1[i] ) > fabs ( corr1[m1] ) ) m1 = i;
+			if ( fabs ( corr2[i] ) > fabs ( corr2[m2] ) ) m2 = i;
+		} // biggest coefficient Rdcm[slice] and clice normal
+		
+		// if opposite in sign -> negate row 2 of Rdcm
+		if ( ( corr1[m1] * corr2[m2] ) < 1 ) {
+			for ( size_t i = 0; i < 4; i++ )
+				Rdcm[i][2] *= -1;
+		}
+			
+		
+	} // if mosaic
+
+	// store the Rdcm in the JSON sidecar
+	// for later use when building NIfTI
+	for ( size_t i = 0; i < 4; i++ )
+		for ( size_t j = 0; j < 4; j++ )
+			superclass::sidecar [ "Rdcm" ] [ i ] [ j ] = Rdcm [ i ] [ j ];
+	
     auto diag = false;
     if (diag) {
 		
@@ -1060,102 +1167,18 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
  */
 template <class value_type> void bisdicom<value_type>::get_metadata(std::vector<std::string>& series_files) {
 
-    // the locals
-	mat4<float>
-		Rdcm;
-	vec3<float> 
-		sli_0_pos;
-	DcmFileFormat 
-		tmpfile;
-	tmpfile.loadFile(series_files[0].c_str());
-	DcmDataset* tmpdata = tmpfile.getDataset();
-
-	// get the slice position from volume 0 slice 0
-	sli_0_pos[0] =
-		static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 0).c_str())));
-	sli_0_pos[1] =
-		static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 1).c_str())));
-	sli_0_pos[2] =
-		static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 2).c_str())));
-
-	if ( ! mosaic ) {
-
-		auto 
-			sli = unsigned ( superclass::sidecar["Slices"] ) - 1;
-		vec3<float> 
-			sli_n_pos;    
-
-		// get the slice position from volume 0 slice N
-		tmpfile.loadFile(series_files[sli].c_str());
-		tmpdata = tmpfile.getDataset();
-		sli_n_pos[0] =
-			static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 0).c_str())));
-		sli_n_pos[1] =
-			static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 1).c_str())));
-		sli_n_pos[2] =
-			static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 2).c_str())));
-			
-		// Dicom voxel to mm transform
-		Rdcm = mat4 <float>
-		       ( slice_orx[0] * voxsize[0], slice_ory[0] * voxsize[1], (sli_n_pos[0] - sli_0_pos[0]) / sli, sli_0_pos[0], 
-				 slice_orx[1] * voxsize[0], slice_ory[1] * voxsize[1], (sli_n_pos[1] - sli_0_pos[1]) / sli, sli_0_pos[1], 
-				 slice_orx[2] * voxsize[0], slice_ory[2] * voxsize[1], (sli_n_pos[2] - sli_0_pos[2]) / sli, sli_0_pos[2], 
-				 0, 0, 0, 1 );
-
-	} else { 
-
-		// See eq. 3 and 4 of https://doi.org/10.1016/j.jneumeth.2016.03.001
-		//     https://github.com/nipy/nibabel/blob/master/nibabel/nicom/dicomwrappers.py
-		// 
-		// Mosaic headers contain many position and orientation details, but
-		// the way to get the coordinate matrix described below uses both the
-		// minimal extra, and the most overlapping information compared to 
-		// the matrix computed from the main header tags.
-		
-		// for the 1st , X_m, Y_m, Z_m == X_1, Y_1, Z_1
-
-		/*
-		sli_0_pos = vec3 <float> ( superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Position" ] [ "Sag" ],
-								   superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Position" ] [ "Cor" ],
-								   superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Position" ] [ "Tra" ] );
-		*/
-		
-		std::cout << "slice 0 position:" << sli_0_pos << "\n";
-		
-		mat3 <float> mosmat3 ( slice_orx[0] * voxsize[0], slice_ory[0] * voxsize[1], sli_0_pos[0],
-							   slice_orx[1] * voxsize[0], slice_ory[1] * voxsize[1], sli_0_pos[1],
-							   slice_orx[2] * voxsize[0], slice_ory[2] * voxsize[1], sli_0_pos[2] );
-		vec3 <float> mosvec3 ( - ( ( mossize - 1 ) * im_size [ 0 ] ) / 2.0,
-		                       - ( ( mossize - 1 ) * im_size [ 1 ] ) / 2.0,
-							   0 );
-
-		for ( int i=0; i<3; i++ ) mosmat3 [1][i] *= -1;
-		sli_0_pos = mosmat3 * mosvec3;
-
-		std::cout << "eq3 vector: " << mosvec3 << "\n";
-		std::cout << "eq3 matrix: " << mosmat3 << "\n";
-		std::cout << "new slice 0 position:" << sli_0_pos << "\n";
-
-		// the JSON header should contain the necessary information (slice normal) for eq. 4
-		
-		vec3 <float> slicenormal ( superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Normal" ] [ "Sag" ],
-								   superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Normal" ] [ "Cor" ],
-								   superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Normal" ] [ "Tra" ] );
-		
-		Rdcm = mat4 <float>
-		       ( slice_orx[0] * voxsize[0], slice_ory[0] * voxsize[1], slicenormal[0] * voxsize[2], sli_0_pos[0], 
-				 slice_orx[1] * voxsize[0], slice_ory[1] * voxsize[1], slicenormal[1] * voxsize[2], sli_0_pos[1], 
-				 slice_orx[2] * voxsize[0], slice_ory[2] * voxsize[1], slicenormal[2] * voxsize[2], sli_0_pos[2], 
-				 0, 0, 0, 1 );
-
-	}
+	mat4<float> 
+		Rdcm (	superclass::sidecar["Rdcm"][0][0], superclass::sidecar["Rdcm"][0][1], superclass::sidecar["Rdcm"][0][2], superclass::sidecar["Rdcm"][0][3], 
+				superclass::sidecar["Rdcm"][1][0], superclass::sidecar["Rdcm"][1][1], superclass::sidecar["Rdcm"][1][2], superclass::sidecar["Rdcm"][1][3], 
+				superclass::sidecar["Rdcm"][2][0], superclass::sidecar["Rdcm"][2][1], superclass::sidecar["Rdcm"][2][2], superclass::sidecar["Rdcm"][2][3], 
+				superclass::sidecar["Rdcm"][3][0], superclass::sidecar["Rdcm"][3][1], superclass::sidecar["Rdcm"][3][2], superclass::sidecar["Rdcm"][3][3]	);
 	
-
     // NIfTI voxel to mm transform
-    mat4<float> Rnii(	-Rdcm[0][0], -Rdcm[0][1], -Rdcm[0][2], -Rdcm[0][3], 
-						-Rdcm[1][0], -Rdcm[1][1], -Rdcm[1][2], -Rdcm[1][3], 
-						 Rdcm[2][0],  Rdcm[2][1],  Rdcm[2][2],  Rdcm[2][3], 
-						 0, 0, 0, 1);
+    mat4<float> 
+		Rnii(	-Rdcm[0][0], -Rdcm[0][1], -Rdcm[0][2], -Rdcm[0][3], 
+				-Rdcm[1][0], -Rdcm[1][1], -Rdcm[1][2], -Rdcm[1][3], 
+				 Rdcm[2][0],  Rdcm[2][1],  Rdcm[2][2],  Rdcm[2][3], 
+				 0, 0, 0, 1);
 
     // usually (if slices go top -> bottom) we want to flip the Y axis
     //                  (dicom: positive is RL, nifti: positive is LR)
@@ -1218,27 +1241,23 @@ template <class value_type> void bisdicom<value_type>::get_metadata(std::vector<
 	    }     // if >2
 	}         // if >1
     }             // if >0
-
-    // get rescale slope and intercept - first try DCM_RescaleSlope/Intercept
-    //        and if that does not work try DCM_RealWorldValueSlope/Intercept
-    supersuper::header->scl_slope = getItemDouble(tmpdata, DCM_RescaleSlope);
-    if(supersuper::header->scl_slope)
-	supersuper::header->scl_slope = getItemDouble(tmpdata, DCM_RescaleIntercept);
-    else {
-	supersuper::header->scl_slope = getItemDouble(tmpdata, DCM_RealWorldValueSlope);
-	supersuper::header->scl_inter = getItemDouble(tmpdata, DCM_RealWorldValueIntercept);
-    } // if scl_slope
-
+	
+	// retrieve the slope and intercept from the sidecar
+	supersuper::header->scl_slope = float ( superclass::sidecar["RescaleSlope"] );
+	supersuper::header->scl_inter = float ( superclass::sidecar["RescaleIntercept"] );
+	
     // set cal_min and cal_max as highest and lowest nonzero values
-    //auto ordered_nonzero = std::vector<value_type>(0);
-    //for(auto intensity = superhyper::data.begin(); intensity != superhyper::data.end(); intensity++)
-	//if(*intensity != 0)
-	//    ordered_nonzero.push_back(*intensity);
-    //std::sort(ordered_nonzero.begin(), ordered_nonzero.end());
+	/*
+    auto ordered_nonzero = std::vector<value_type>(0);
+    for(auto intensity = superhyper::data.begin(); intensity != superhyper::data.end(); intensity++)
+	if(*intensity != 0)
+	    ordered_nonzero.push_back(*intensity);
+    std::sort(ordered_nonzero.begin(), ordered_nonzero.end());
     supersuper::header->cal_min = 0;//float(ordered_nonzero.front());
     supersuper::header->cal_max = 10;//float(ordered_nonzero.back());
-    //ordered_nonzero.resize(0); // does that clear the memory?
-
+    ordered_nonzero.resize(0); // does that clear the memory?
+	*/
+ 
     // assume mm as vox units, s as time units
     supersuper::header->xyz_units = NIFTI_UNITS_MM;
     supersuper::header->time_units =

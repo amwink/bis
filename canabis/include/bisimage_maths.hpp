@@ -162,6 +162,32 @@ class vecN {
 			  T& at ( size_t offset)       { return data.at ( offset ); }				// write access
 		const T& at ( size_t offset) const { return data.at ( offset ); }				// read  access
 
+		// copy (part of) another vector
+		template <unsigned R>
+		vecN<T,S> partfill ( vecN<T,R> rhs ) {									// into (part of) (*this)
+			unsigned s = ( R < S ) ? R : S;										// only smallest size is usable
+			std::copy_n ( rhs.data.begin(), s, data.begin() );
+			return (*this);
+		}
+
+		// fill with row from matrix
+		template <unsigned R>
+		vecN<T,S> getrow ( matN<T,R> rhs, size_t row ) {						// into (part of) (*this)
+			unsigned s = ( R < S ) ? R : S;										// only smallest size is usable
+			for ( size_t i = 0; i < s; i++ )
+				data [ i ] = rhs [ row ] [ i ];
+			return (*this);
+		}
+
+		// fill with row / column from matrix
+		template <unsigned R>
+		vecN<T,S> getcol ( matN<T,R> rhs, size_t col ) {						// into (part of) (*this)
+			unsigned s = ( R < S ) ? R : S;										// only smallest size is usable
+			for ( size_t i = 0; i < s; i++ )
+				data [ i ] = rhs [ i ] [ col ];
+			return (*this);
+		}
+
 		// (in) equality
 		bool operator== (vecN& v) { return ( data == v.data ); }						// equality
 		bool operator!= (vecN& v) { return !( (*this) == v );  }						// inequality
@@ -208,12 +234,20 @@ class vecN {
 
 		// multiplication by matrix (if v is a row vector)
 		template <typename U>
-		vecN<T,S> operator*( const matN<U,S>& m ) const { 
+		vecN<T,S> operator* ( const matN<U,S>& m ) const { 
 			vecN<T,S> out;
 			for ( size_t i = 0; i < S; i++ )		// column in m
 				for ( size_t j = 0; j < S; j++ )	// column in (*this), row in m
-					out.data[i] += data[i] * m [i][j];
+					out[i] += at(j) * m[j][i];
 			return out; 
+		}
+
+		// multiplication by matrix cannot be done in-place, so *= uses * instead of vice versa
+		template <typename U>
+		vecN<T,S> operator*= ( const matN<U,S>& m ) { 
+			vecN<T,S> product = (*this) * m;
+			std::copy ( product.data.begin(), product.data.end(), data.begin() );
+			return (*this);
 		}
 
 		// left /= and / for elements and vectors
@@ -319,7 +353,7 @@ class matN {
             { if ( S>2 ) {														// constructor from 16 scalars
 			  at ( 0, 0 ) = x0; at ( 0, 1 ) = y0; at ( 0, 2 ) = z0;
               at ( 1, 0 ) = x1; at ( 1, 1 ) = y1; at ( 1, 2 ) = z1;
-              at ( 2, 0 ) = x2; at ( 2, 1 ) = y2; at ( 1, 2 ) = z2;
+              at ( 2, 0 ) = x2; at ( 2, 1 ) = y2; at ( 2, 2 ) = z2;
 			  }
 			}    
         matN ( T x0,   T y0,   T z0,   T t0,
@@ -356,6 +390,33 @@ class matN {
 		// same functionality for inside the class
 		      T& at(const size_t r, const size_t c )        { return data.at ( S*r + c ); } 		// write access
 		const T& at(const size_t r, const size_t c ) const  { return data.at ( S*r + c ); }   		// read  access
+
+		template <unsigned R>													// copy (part of) another matrix 
+		matN<T,S> partfill ( matN<T,R> rhs ) {									// into (part of) (*this)
+			unsigned s = ( R < S ) ? R : S;										// only smallest size is usable
+			for ( unsigned i=0; i<s; i++ )
+				for (unsigned j=0; j<s; j++ )
+					at ( i, j ) = rhs [i][j];									// using assignment and addressing
+			return (*this);
+		}
+
+		// fill row with vector
+		template <unsigned R>
+		matN<T,S> getrow ( vecN<T,R> rhs, size_t row ) {						// into (part of) (*this)
+			unsigned s = ( R < S ) ? R : S;										// only smallest size is usable
+			for ( size_t i = 0; i < s; i++ )
+				at ( row, i ) = rhs [ i ];
+			return (*this);
+		}
+
+		// fill column with vector
+		template <unsigned R>
+		matN<T,S> getcol ( vecN<T,R> rhs, size_t col ) {						// into (part of) (*this)
+			unsigned s = ( R < S ) ? R : S;										// only smallest size is usable
+			for ( size_t i = 0; i < s; i++ )
+				at ( i, col ) = rhs [ i ];
+			return (*this);
+		}
 
 		// (in) equality
 		bool operator== (matN& v) { return ( data == v.data ); }
@@ -405,18 +466,30 @@ class matN {
 			for ( size_t i = 0; i < S; i++ )
 				for ( size_t j = 0; j < S; j++ )
 					for ( size_t k = 0; k < S; k++ )
-						product.data [ S*i + j ] += data [ S*i + k ] * m.data [ S*k + i ];
+						product.data [ S*i + j ] += data [ S*i + k ] * m.data [ S*k + j ];
+			std::copy ( product.data.begin(), product.data.end(), data.begin() );
 			return (*this);
 		}
 
 		// left *= for scalar
 		const matN<T,S>& operator*= ( const T& rhs )       { for ( size_t i = 0; i < S*S; i++ ) data[i] *= rhs; return (*this);    }
-		
+
 		// operator * (matrix pruduct for matrix rhs, element-wise for scalar rhs)
 		template <typename U>
 		const matN<T,S> operator*   ( matN<U,S>& rhs )     { auto out = (*this); out *= rhs; return out;                        }
 		const matN<T,S> operator*   ( const T& rhs )       { auto out = (*this); out *= rhs; return out;                        }
 
+		// multiplication by vector (if v is a column vector)
+		// (there is no *= as the output is not of type matN)
+		template <typename U>
+		vecN<T,S> operator* ( const vecN<U,S>& v ) const { 
+			vecN<T,S> out;
+			for ( size_t i = 0; i < S; i++ )		// column in m
+				for ( size_t j = 0; j < S; j++ )	// column in (*this), row in m
+					out[i] += at( i, j ) * v[j];
+			return (out); 
+		}
+		
 		// hadamard product (element-wise multiplication)
 		template <typename U>
 		const matN<T,S>& hadamard ( const matN<U,S>& rhs ) { for ( size_t i = 0; i < S*S; i++ ) data[i] *= rhs.data[i]; return (*this); }
@@ -757,13 +830,17 @@ void ApplyRotLeft( 	rotation r,	// angle
 
 // non-members of matN for matN
 template <typename U, unsigned S>
-std::ostream& operator<<(std::ostream& out, const matN<U,S>& m) { 
+std::ostream& operator<<(std::ostream& out, const matN<U,S>& m) {
+	auto last = 2*S - 2;
 	out << "( ";
 	for ( size_t i = 0; i < S; i++ ) {
 		if ( i ) out << "  ";
-		for ( size_t j = 0; j < S; j++ )
-			out << m[i][j] << ", "; 
-		if ( i < ( S-1 ) ) out << ", \n";
+		for ( size_t j = 0; j < S; j++ ) {
+			out << m[i][j];
+			if ( (i+j) < last ) std::cout << ", "; 			
+		}
+		if ( i < ( S-1 ) ) 
+			out << "\n";
 	}
 	out << " )"; // use two ANSI backspace characters '\b' to overwrite final ", "
 	return out; 
