@@ -1,15 +1,15 @@
 #ifndef BISIMAGE_MATHS_HPP_INCLUDED
 #define BISIMAGE_MATHS_HPP_INCLUDED
 
-/* Much of the basic 2/3/4D matrix/vector maths 
+/* Much of the basic 2/3/4D matrix/vector maths
  * in this header is inspired by Linas Vepstas'
  * https://fossies.org/linux/gle/src/vvector.h
  *
- * These classes are a middle ground between the 
+ * These classes are a middle ground between the
  * speed of #define directives and the flexibility
  * of class definitions.
- * 
- * 
+ *
+ *
  *
  * To request more functionality, contact
  * Alle Meije Wink, mail: a.m.wink@gmail.com
@@ -32,11 +32,11 @@
 
 namespace bis {
 
-    
+
 
 /* templated signum function
  *
- * 
+ *
  */
 template < typename T >
 T signum (T x) {
@@ -91,10 +91,10 @@ struct ev {
 };
 
 // store rotations
-typedef struct { 
-	double c; 
-	double s; 
-	double t; 
+typedef struct {
+	double c;
+	double s;
+	double t;
 } rotation;
 
 template <typename T, unsigned S>
@@ -107,11 +107,11 @@ class vecN {
     friend std::istream& operator>>(std::istream& in, vecN<T2,S2>& v);
 
     protected:
-        std::vector<T> 
+        std::vector<T>
 			data;
 		unsigned
 			sz = S;
-		
+
 
     public:
         vecN (                    ): data ( S )
@@ -123,10 +123,10 @@ class vecN {
         vecN ( T x, T y, T z ): data ( S )
             { data[0] = x; if (S>1) data[1] = y;										// constructor from 3 scalars
 						   if (S>2) data[2] = z; }
-						   
+
         vecN ( T x, T y, T z, T t ): data ( S )
-            { data[0] = x; if (S>1) data[1] = y; 
-						   if (S>2) data[2] = z; 
+            { data[0] = x; if (S>1) data[1] = y;
+						   if (S>2) data[2] = z;
 						   if (S>3) data[3] = t; }										// constructor from 4 scalars
 
 		vecN ( T* xyz             ): data ( S )
@@ -141,7 +141,7 @@ class vecN {
 
 		template <unsigned R>
         vecN ( vecN<T,R>& rhs ): data ( S )
-            {  if (S>=R) std::copy ( rhs.getdata()->begin(), rhs.getdata()->end(), 
+            {  if (S>=R) std::copy ( rhs.getdata()->begin(), rhs.getdata()->end(),
 									 data.begin() ); }									// copy from vec2/3 ( for vec3/4 )
 
 		vecN<T,S> operator=( vecN<T,S> rhs ) {
@@ -195,10 +195,10 @@ class vecN {
 		// some vector computations
 		T norm() const { return ( sqrt( (*this) & (*this) ) ); } 						// norm: square root of inner product
 		vecN<T,S> reciprocal ( const vecN& v ) const {									// reciprocal: 1/x for all elements x
-			auto 
-				out = (*this); 
-			std::transform ( out.data.begin(), out.data.end(), out.data.begin(), std::bind1st ( std::divides<T>(), 1.0 ) ); 
-			return out; 
+			auto
+				out = (*this);
+			std::transform ( out.data.begin(), out.data.end(), out.data.begin(), std::bind1st ( std::divides<T>(), 1.0 ) );
+			return out;
 		}
 
 		// return std::vector with coefficients
@@ -234,17 +234,17 @@ class vecN {
 
 		// multiplication by matrix (if v is a row vector)
 		template <typename U>
-		vecN<T,S> operator* ( const matN<U,S>& m ) const { 
+		vecN<T,S> operator* ( const matN<U,S>& m ) const {
 			vecN<T,S> out;
 			for ( size_t i = 0; i < S; i++ )		// column in m
 				for ( size_t j = 0; j < S; j++ )	// column in (*this), row in m
 					out[i] += at(j) * m[j][i];
-			return out; 
+			return out;
 		}
 
 		// multiplication by matrix cannot be done in-place, so *= uses * instead of vice versa
 		template <typename U>
-		vecN<T,S> operator*= ( const matN<U,S>& m ) { 
+		vecN<T,S> operator*= ( const matN<U,S>& m ) {
 			vecN<T,S> product = (*this) * m;
 			std::copy ( product.data.begin(), product.data.end(), data.begin() );
 			return (*this);
@@ -258,18 +258,18 @@ class vecN {
 		const vecN<T,S> operator/   ( const U& rhs ) { vecN<T,S> out(*this); out /= rhs; return out;                   }
 
 		// inner product (generalisation of dot product)
-		T operator& ( const vecN<T,S>& v ) const { return std::inner_product ( data.begin(), data.end(), v.data.begin(), 0 ); }
+		T operator& ( const vecN<T,S>& v ) const { return std::inner_product ( data.begin(), data.end(), v.data.begin(), 0. ); }
 
 		// cross product (exterior/wedge product in other than 3D but mostly used in 3D as cross product)
-		vecN<T,S> operator^( const vecN<T,S>& v ) const { 
+		vecN<T,S> operator^( const vecN<T,S>& v ) const {
 			switch (S) {
 				case ( 2 ): // exterior product
-					return vecN( data[0] * v[1] - data[1] * v[0], 0 );   
+					return vecN( data[0] * v[1] - data[1] * v[0], 0 );
 					break;
 				case ( 3 ): // cross product
 					return vecN( data[1] * v[2] - data[2] * v[1],
 								 data[0] * v[2] - data[2] * v[0],
-								 data[0] * v[1] - data[1] * v[0] );   
+								 data[0] * v[1] - data[1] * v[0] );
 					break;
 			default:
 				std::cerr << "exterior / cross product only defined as scalar in 2D / 3D" << std::endl;
@@ -281,20 +281,20 @@ class vecN {
 
 // non-members of vecN for vecN
 template <typename T, unsigned S>
-std::ostream& operator<<(std::ostream& out, const vecN<T,S>& v) { 
+std::ostream& operator<<(std::ostream& out, const vecN<T,S>& v) {
 	out << "( ";
 	for ( size_t i = 0; i < S; i++ ) {
 		out << v.data[i];
-		if ( i < ( S-1 ) ) out << ", "; 
+		if ( i < ( S-1 ) ) out << ", ";
 	}
 	out << " )"; // use two ANSI backspace characters '\b' to overwrite final ", "
-	return out; 
+	return out;
 }
 
 template <typename T, unsigned S>
-std::istream& operator>>(std::istream& in , vecN<T,S> &v) { 
+std::istream& operator>>(std::istream& in , vecN<T,S> &v) {
 	for ( size_t i = 0; i < S; i++ )
-		in >> v.data[i]; 
+		in >> v.data[i];
 	return in;
 }
 
@@ -332,7 +332,7 @@ class matN {
     friend std::istream& operator>>(std::istream& in, matN<T2,S2>& v);
 
     protected:
-        std::vector<T> 
+        std::vector<T>
 			data;
 		unsigned
 			sz = S;
@@ -341,10 +341,10 @@ class matN {
         matN (): data ( S * S )
             {};																	// default constructor
         matN ( T x0,   T y0,													// constructor from  4 scalars
-               T x1,   T y1 ): data( S*S ) 
+               T x1,   T y1 ): data( S*S )
 			{ if ( S>1 ) {
 			  at ( 0, 0 ) = x0; at ( 0, 1 ) = y0;
-			  at ( 1, 0 ) = x1; at ( 1, 1 ) = y1;			  
+			  at ( 1, 0 ) = x1; at ( 1, 1 ) = y1;
 			  }
 			}
         matN ( T x0,   T y0,   T z0,
@@ -355,7 +355,7 @@ class matN {
               at ( 1, 0 ) = x1; at ( 1, 1 ) = y1; at ( 1, 2 ) = z1;
               at ( 2, 0 ) = x2; at ( 2, 1 ) = y2; at ( 2, 2 ) = z2;
 			  }
-			}    
+			}
         matN ( T x0,   T y0,   T z0,   T t0,
                T x1,   T y1,   T z1,   T t1,
                T x2,   T y2,   T z2,   T t2,
@@ -366,7 +366,7 @@ class matN {
               at ( 2, 0 ) = x2; at ( 2, 1 ) = y2; at ( 2, 2 ) = z2; at ( 2, 3 ) = t2;
               at ( 3, 0 ) = x3; at ( 3, 1 ) = y3; at ( 3, 2 ) = z3; at ( 3, 3 ) = t3;
 			  }
-			}    
+			}
 
         matN ( T* xyz                 ): data ( S*S )
             { std::copy (xyz, xyz+S*S, data.begin() ); }						// constructor from pointer
@@ -374,7 +374,7 @@ class matN {
 		matN ( std::initializer_list<T> l ): data ( S*S )
 			{ auto R = ( S*S < l.size() ) ? S*S : l.size();
 			  std::copy_n ( l.begin(), R, data.begin() ); }						// constructor from initialiser list
-			  
+
         matN ( const matN<T,S>& rhs   ): data ( S*S )
             { std::copy ( rhs.data.begin(), rhs.data.end(), data.begin() ); }	// copy constructor
 
@@ -391,7 +391,7 @@ class matN {
 		      T& at(const size_t r, const size_t c )        { return data.at ( S*r + c ); } 		// write access
 		const T& at(const size_t r, const size_t c ) const  { return data.at ( S*r + c ); }   		// read  access
 
-		template <unsigned R>													// copy (part of) another matrix 
+		template <unsigned R>													// copy (part of) another matrix
 		matN<T,S> partfill ( matN<T,R> rhs ) {									// into (part of) (*this)
 			unsigned s = ( R < S ) ? R : S;										// only smallest size is usable
 			for ( unsigned i=0; i<s; i++ )
@@ -424,14 +424,14 @@ class matN {
 
 		// some matrix computations
 		matN<T,S> reciprocal () const {														// reciprocal: 1/x for all elements x
-			auto 
-				out = (*this); 
-			std::transform ( out.data.begin(), out.data.end(), out.data.begin(), std::bind1st ( std::divides<T>(), 1.0 ) ); 
-			return out; 
+			auto
+				out = (*this);
+			std::transform ( out.data.begin(), out.data.end(), out.data.begin(), std::bind1st ( std::divides<T>(), 1.0 ) );
+			return out;
 		}
-																		 																		
+
 		const matN<T,S> eye ( const T v = 1 ) const {											// identity
-			matN<T,S> out; 
+			matN<T,S> out;
 			for ( size_t i = 0; i < S; i++ )
 				out[i][i] = v;
 			return out;
@@ -458,10 +458,10 @@ class matN {
 		template <typename U>
 		const matN<T,S> operator-   ( const U& rhs )       { matN<T,S> out(*this); out -= rhs; return out;                   }
 		const matN<T,S> operator-   ( void )               { auto out = (*this); out *= -1; return out; }
-		
+
 		// matrix-matrix product (only for 2 equal size inputs)
 		template <typename U>
-		matN<T,S> operator*=( matN<U,S>& m ) { 			
+		matN<T,S> operator*=( matN<U,S>& m ) {
 			matN<T,S> product;
 			for ( size_t i = 0; i < S; i++ )
 				for ( size_t j = 0; j < S; j++ )
@@ -482,14 +482,14 @@ class matN {
 		// multiplication by vector (if v is a column vector)
 		// (there is no *= as the output is not of type matN)
 		template <typename U>
-		vecN<T,S> operator* ( const vecN<U,S>& v ) const { 
+		vecN<T,S> operator* ( const vecN<U,S>& v ) const {
 			vecN<T,S> out;
 			for ( size_t i = 0; i < S; i++ )		// column in m
 				for ( size_t j = 0; j < S; j++ )	// column in (*this), row in m
 					out[i] += at( i, j ) * v[j];
-			return (out); 
+			return (out);
 		}
-		
+
 		// hadamard product (element-wise multiplication)
 		template <typename U>
 		const matN<T,S>& hadamard ( const matN<U,S>& rhs ) { for ( size_t i = 0; i < S*S; i++ ) data[i] *= rhs.data[i]; return (*this); }
@@ -507,14 +507,14 @@ class matN {
 		//////////////////////////////////////////////////////////////
 		// code that computes the inverse of 2x2, 3x3 and 4x4 matrices
 		//////////////////////////////////////////////////////////////
-		// 
+		//
 		// external code may be linked for larger sizes
 
 
 
 		// cofactors -- required for adjoint (adjugate) matrix
-		const T cofactor_ij ( size_t i, size_t j ) {			
-			
+		const T cofactor_ij ( size_t i, size_t j ) {
+
 			vecN<size_t,S> ii;
 			vecN<size_t,S> jj;
 			double fac;
@@ -531,7 +531,7 @@ class matN {
 										  -  at ( ii[1], jj[2] ) * at ( ii[2], jj[1] ) );
 			(fac) -= at ( ii[0], jj[1] ) * ( at ( ii[1], jj[0] ) * at ( ii[2], jj[2] )
 										  -  at ( ii[1], jj[2] ) * at ( ii[2], jj[0] ) );
-			(fac) += at ( ii[0], jj[2] ) * ( at ( ii[1], jj[0] ) * at ( ii[2], jj[1] ) 
+			(fac) += at ( ii[0], jj[2] ) * ( at ( ii[1], jj[0] ) * at ( ii[2], jj[1] )
 										  -  at ( ii[1], jj[1] ) * at ( ii[2], jj[0] ) );
 
 			/* compute sign */
@@ -546,14 +546,14 @@ class matN {
 
 		// determinant -- 0 for singular matrices
 		T determinant () {
-			
+
 			switch ( S ) {
-				case ( 4 ): 
+				case ( 4 ):
 					return ( cofactor_ij ( 0, 0 ) * at ( 0, 0 ) +
 							 cofactor_ij ( 0, 1 ) * at ( 0, 1 ) +
 							 cofactor_ij ( 0, 2 ) * at ( 0, 2 ) +
 							 cofactor_ij ( 0, 3 ) * at ( 0, 3 ) );
-					break;				
+					break;
 				case ( 3 ):
 					return (  data[0] * ( data[4] * data[8] - data[5] * data[7] )
 							- data[1] * ( data[3] * data[8] - data[5] * data[6] )
@@ -570,7 +570,7 @@ class matN {
 
 			matN<T,S> out;
 			switch ( S ) {
-				case ( 4 ): 
+				case ( 4 ):
 					for ( size_t i = 0; i < S; i++ )
 						for ( size_t j = 0; j < S; j++ )
 							out[j][i] = scale * cofactor_ij ( i, j );
@@ -585,7 +585,7 @@ class matN {
 								 -scale * (data[0] * data[5] - data[2] * data[3]),
 								  scale * (data[3] * data[7] - data[4] * data[6]),
 								 -scale * (data[0] * data[7] - data[1] * data[6]),
-								  scale * (data[0] * data[4] - data[1] * data[3]) ); 
+								  scale * (data[0] * data[4] - data[1] * data[3]) );
 					break;
 				default:
 					return matN ( scale * data[3], -scale * data[1],
@@ -593,7 +593,7 @@ class matN {
 			} // switch
 
 		}
-    
+
     // inverse
     const matN<T,S> inverse() {
         T det = this->determinant();
@@ -608,10 +608,10 @@ class matN {
     /////////////////////////////////////////////////////////////////
 	// code that computes eigenvectors of ->only symmetric<- matrices
     /////////////////////////////////////////////////////////////////
-	// 
+	//
 	// the Jacobi algorithm applies successive Givens rotations
 	// to the largest above-diagonal element, setting them to 0
-	// until the matrix is diagonal. 
+	// until the matrix is diagonal.
 
 
 
@@ -623,18 +623,18 @@ class matN {
 		  c_max = c;
 	  return c_max;
 	}
-	
+
 	// find the maximum entry in the matrix M in O(n) time
-	void max_pos_upper ( 	unsigned&				i_max, 
-							unsigned&				j_max, 
+	void max_pos_upper ( 	unsigned&				i_max,
+							unsigned&				j_max,
 							vecN<unsigned, S-1>&	max_idx_row ) const {
 	  i_max = 0;
 	  j_max = max_idx_row[i_max];
-	  auto 
+	  auto
 		max_entry = std::abs ( at ( i_max, j_max ) );
-	  unsigned  
+	  unsigned
 		nm1 = S-1;
-		
+
 	  for (unsigned i=1; i < nm1; i++) {
 		unsigned j = max_idx_row[i];
 		if ( std::abs ( at ( i, j ) ) > max_entry) {
@@ -650,13 +650,13 @@ class matN {
 	// This is Jacobi's algorithm, only uses upper diagonal
 	//      It diagonalises the matrix, so that the values on the diagonal
 	//		are eigenvalues. The required rotations can also be applied to
-	//		an identity matrix, to yield the corresponding eigenvectors. 	
-	// 
+	//		an identity matrix, to yield the corresponding eigenvectors.
+	//
 	// based on https://github.com/jewettaij/jacobi_pd
 	ev<T,S> diagonalise_sym ( 	bool vectors = true, 			// set to false for eigenvalues only
 								unsigned max_iter = 100000 ) {	// decrease to escape slow convergence
-		
-		matN<T,S> 
+
+		matN<T,S>
 			m (*this);							// local copy
 		ev<T,S>
 			ev;									// output eigenvalues and -vectors
@@ -666,37 +666,37 @@ class matN {
 		if (vectors)
 			ev.m=eye();
 
-		for (unsigned i = 0; i < S-1; i++)			//Initialize the "max_idx_row[]" array 
+		for (unsigned i = 0; i < S-1; i++)			//Initialize the "max_idx_row[]" array
 			max_idx_row[i] = m.max_col_upper(i);	//(which is needed by max_pos_upper())
-		
+
 		for ( unsigned iter=0; iter <= max_iter; iter++ ) {
 			unsigned i,j;
 			m.max_pos_upper( i, j, max_idx_row );	// Find the maximum entry in the matrix. Store in i,j
-			
+
 			// If m[i][j] is small compared to m[i][i] and m[j][j], set it to 0 and update max.
-			if (  ( m[i][i] + m[i][j] == m[i][i] ) && 
+			if (  ( m[i][i] + m[i][j] == m[i][i] ) &&
 				  ( m[j][j] + m[i][j] == m[j][j] )  ) {
 				m[i][j] = 0.0;
 				max_idx_row[i] = m.max_col_upper(i);
 			}  // if 0
-	
+
 			// if the maximum element is 0
 			if ( m[i][j] == 0.0 )
 				break;
 
 			// Otherwise, apply a rotation to make M[i][j] = 0
-			rotation 
+			rotation
 				r = m.CalcRot ( i, j );				// Calculate the parameters of the rotation matrix.
 			m.ApplyRot ( r, i, j, max_idx_row ); 	// Apply this rotation to the M matrix.
 			if ( vectors )							// Optional: the eigenvectors are requested, then
 				ev.m.ApplyRotLeft ( r, i, j );		// apply the rotation to the eigenvector matrix
-		
-		} // for iter 
-		
+
+		} // for iter
+
 		// copy m's diagonal as the eigenvalues
-		for ( size_t r = 0; r<S; r++ ) 
-			ev.v[r] = m[r][r]; 
-		
+		for ( size_t r = 0; r<S; r++ )
+			ev.v[r] = m[r][r];
+
 		return ev;
 
 	} // eigen_int
@@ -705,36 +705,36 @@ class matN {
 // and store the angle's cosine, sine and tangent
 rotation CalcRot(	unsigned i,		// row index
 					unsigned j) {	// column index
-					
-	rotation 
+
+	rotation
 		r { 1, 1, 1 };
-	double 
+	double
 		M_jj_ii = at ( j, j ) - at ( i, i );
-		
+
 	if (M_jj_ii != 0.0) {
-	
+
 		r.t = 0.0;
-		double 
+		double
 			kappa = M_jj_ii,
 			M_ij = at ( i, j );
-			
+
 		if (M_ij != 0.0) {
-			
+
 			kappa /= (2.0*M_ij);
 			// t satisfies: t^2 + 2*t*kappa - 1 = 0
 			// (choose the root which has the smaller absolute value)
 			r.t = 1.0 / (std::sqrt(1 + kappa*kappa) + std::abs(kappa));
 			if (kappa < 0.0)
 				r.t = -r.t;
-				
+
 		} // if Mij
-		
+
 	} // if  Mjjii
 
 	r.c = 1.0 / std::sqrt(1 + r.t*r.t);
 	r.s = r.c*r.t;
 	return r;
-	
+
 }
 
 // apply the Givens rotation Q^T * M * Q
@@ -761,16 +761,16 @@ void ApplyRot(	rotation r, // angle
 	  at(i,j) = 0.0;
 
 	  //compute M[w][i] and M[i][w] for all w!=i,considering above-diagonal elements
-	  
+
 	for (unsigned w=0; w < i; w++) {		// 0 <= w <  i  <  j < n
 		at ( i, w ) = at ( w, i );		// backup the previous value. store below diagonal (i>w)
 		at ( w, i ) = r.c * at ( w, i ) - r.s * at ( w, j );	//M[w][i], M[w][j] from previous iteration
-		if ( i == max_idx_row[w] ) 
+		if ( i == max_idx_row[w] )
 			max_idx_row[w] = max_col_upper(w);
 			else if ( std::abs( at ( w, i ) ) > std::abs( at( w, max_idx_row[w]) ) )
 				max_idx_row[w]=i;
 		//assert(max_idx_row[w] == max_col_upper(M, w));
-	} // for w	  
+	} // for w
 	for (unsigned w=i+1; w < j; w++) {		// 0 <= i <  w  <  j < n
 		at ( w, i ) = at ( i, w );		// backup the previous value. store below diagonal (w>i)
 		at ( i, w ) = r.c * at ( i, w ) - r.s * at ( w, j ); //M[i][w], M[w][j] from previous iteration
@@ -786,14 +786,14 @@ void ApplyRot(	rotation r, // angle
 	//compute M[w][j] and M[j][w] for all w!=j,considering above-diagonal elements
 	for ( unsigned w=0; w < i; w++ ) {			// 0 <=  w  <  i <  j < n
 		at ( w, j ) = r.s * at ( i, w ) + r.c * at ( w, j ); // M[i][w], M[w][j] from previous iteration
-		if ( j == max_idx_row[w]) 
+		if ( j == max_idx_row[w])
 			max_idx_row[w] = max_col_upper(w);
-			else if ( std::abs( at ( w, j ) ) > std::abs( at ( w, max_idx_row[w] ) ) ) 
+			else if ( std::abs( at ( w, j ) ) > std::abs( at ( w, max_idx_row[w] ) ) )
 					max_idx_row[w]=j;
 	} // for w
 	for ( unsigned w=i+1; w < j; w++) {      // 0 <= i+1 <= w <  j < n
 		at ( w, j ) = r.s*at(w,i) + r.c*at(w,j); //M[w][i], M[w][j] from previous iteration
-		if (j == max_idx_row[w]) 
+		if (j == max_idx_row[w])
 			max_idx_row[w] = max_col_upper(w);
 			else if ( std::abs( at ( w, j ) ) > std::abs( at ( w, max_idx_row[w] ) ) )
 				max_idx_row[w]=j;
@@ -807,18 +807,18 @@ void ApplyRot(	rotation r, // angle
 
 } //Jacobi::ApplyRot()
 
-// apply one Givens rotation 
-void ApplyRotLeft( 	rotation r,	// angle 
+// apply one Givens rotation
+void ApplyRotLeft( 	rotation r,	// angle
 					unsigned i,		// row index
 					unsigned j) {	// column index
 
   for (unsigned v = 0; v < S; v++) {
-	  
-    auto 
+
+    auto
 		Miv = at ( i, v ); //backup E[i][v]
     at ( i, v ) = r.c * at ( i, v ) - r.s * at ( j, v );
     at ( j, v ) = r.s * Miv     	+ r.c * at ( j, v );
-  
+
   } // for v
 
 } // ApplyRotLeft
@@ -837,19 +837,19 @@ std::ostream& operator<<(std::ostream& out, const matN<U,S>& m) {
 		if ( i ) out << "  ";
 		for ( size_t j = 0; j < S; j++ ) {
 			out << m[i][j];
-			if ( (i+j) < last ) std::cout << ", "; 			
+			if ( (i+j) < last ) std::cout << ", ";
 		}
-		if ( i < ( S-1 ) ) 
+		if ( i < ( S-1 ) )
 			out << "\n";
 	}
 	out << " )"; // use two ANSI backspace characters '\b' to overwrite final ", "
-	return out; 
+	return out;
 }
 
 template <typename U, unsigned S>
-std::istream& operator>>(std::istream& in , matN<U,S> &v) { 
+std::istream& operator>>(std::istream& in , matN<U,S> &v) {
 	for ( size_t i = 0; i < S*S; i++ )
-		in >> v.data[i]; 
+		in >> v.data[i];
 	return in;
 }
 
@@ -873,11 +873,11 @@ inline matN <T,S> operator/ ( T x, matN <T,S> y) {
 
 // matrix-vector product (v is a column vector)
 template <typename T, typename U, unsigned S>
-const vecN<T,S> operator* ( const matN<U,S>& m, const vecN<T,S>& v ) { 
+const vecN<T,S> operator* ( const matN<U,S>& m, const vecN<T,S>& v ) {
 	vecN<T,S> out;
-	for ( size_t i = 0; i < S; i++ ) 
-		for ( size_t j = 0; j < S; j++ ) 
-			out[i] += m[i][j] * v[j]; 
+	for ( size_t i = 0; i < S; i++ )
+		for ( size_t j = 0; j < S; j++ )
+			out[i] += m[i][j] * v[j];
 	return out;
 }
 

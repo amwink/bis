@@ -128,13 +128,13 @@ void getbinarydata(std::vector<std::string> file_list, unsigned bufsize, DataVec
     std::vector<unsigned char> readbuffer;  // for reading binary data
     std::vector<unsigned char> keepbuffer;  // for storing binary data
     std::vector<unsigned char> swapbuffer;  // for reordering tiles -> slices (mosaic)
-    size_t 
+    size_t
 		bpp = 8,							// bits/pixel read from file
 		copysize = 0,                       // (mosaic) size of image to copy
 		imagesize = 0,						// size of a slice on file in bytes
-		bufferoffset = 0,					// offset of a slice in the image 
+		bufferoffset = 0,					// offset of a slice in the image
 		bitsperpixel = bpp,					// bpp quantised to multiples of 8
-		bytesperpixel = bitsperpixel / 8;	// bytes per pixel = bits / 8 
+		bytesperpixel = bitsperpixel / 8;	// bytes per pixel = bits / 8
 
     for ( size_t im = 0; im < file_list.size(); im += slicesinfile ) {					// also account for files with >1 slice
 
@@ -161,11 +161,11 @@ void getbinarydata(std::vector<std::string> file_list, unsigned bufsize, DataVec
 
 		// use frame 0 (last parameter) for every image
 		if ( !image->getOutputData( &readbuffer[0], imagesize, 8, 0) )
-			
+
 			std::cerr << "no bytes read at buffer position " << bufferoffset;
-			
+
 		else {
-		
+
 			if ( mosaic_side >1 )	{														// if >1 tile -> reorganising necessary
 
 				std::cout << "mosaic size " << mosaic_side << " ...\n";
@@ -184,31 +184,31 @@ void getbinarydata(std::vector<std::string> file_list, unsigned bufsize, DataVec
 				//
 				// memory layout: > then ^
 				//
-				// This means: 
+				// This means:
 				//   1. every 'horizontal' strips of <mosaic_side> tiles is independent
 				//   2. a for-loop over slices/tiles X rows inside the strip does the swap:
 				//      -- in the tile  representation (L), the row  (number) is the inner loop
-				//         A1, A2, A3, A4, B1, B2, B3, B4, C1, C2, C3, C4 
+				//         A1, A2, A3, A4, B1, B2, B3, B4, C1, C2, C3, C4
 				//      -- in the slice representation (R). the tile (letter) is the inner loop
 				//         A1, B1, C1, A2, B2, C2, A3, B3, C3, A4, B4, C4
 				//
 				// so with an extra working array of #strip slices, we can re-order the mosaic
 				// (using an array swap_table)
 				//
-				// It also meanse that if (say) tile C (in the last strip) is not used, the 
+				// It also means that if (say) tile C (in the last strip) is not used, the
 				// image buffer for the parent image has no space for it: we cannot copy an
 				// 8x8-tile mosaic into a 63-slice volume. Some strips can be copied, some
 				// (partly) cannot (a 50-slice volume also results in an 8x8 mosaic, with one
-				// strip partly filled and one empty). 
+				// strip partly filled and one empty).
 				//
-				// This is not a problem for the read buffer (which reads / stores a mosaic), 
+				// This is not a problem for the read buffer (which reads / stores a mosaic),
 				// only for the keep buffer, which stores only the slices.
 
-				// in the swap table the index is the slicewise position, 
+				// in the swap table the index is the slicewise position,
 				//             the coefficient is the tile-wise position
-				std::vector < size_t > swap_table ( mosy ); 
+				std::vector < size_t > swap_table ( mosy );
 				size_t counter = 0;
-				for ( size_t letter = 0; letter < mosaic_side; letter++ ) 
+				for ( size_t letter = 0; letter < mosaic_side; letter++ )
 					for ( size_t digit = 0; digit < sliy; digit++ )
 						swap_table [ counter++ ] = digit * mosaic_side + letter;
 
@@ -224,13 +224,13 @@ void getbinarydata(std::vector<std::string> file_list, unsigned bufsize, DataVec
 				size_t strip = 0; {
 
 					std::cout << "strip " << strip << " of " << mosaic_side << "\n";
-					
-					auto 
+
+					auto
 						stripstart = strip * imagesize / mosaic_side;
 
 					// copy one strip into the swap buffer
-					memcpy ( &swapbuffer [ 0 ], 
-							 &readbuffer [ stripstart ], 
+					memcpy ( &swapbuffer [ 0 ],
+							 &readbuffer [ stripstart ],
 							 swapbuffer.size() );
 
 					size_t
@@ -249,8 +249,8 @@ void getbinarydata(std::vector<std::string> file_list, unsigned bufsize, DataVec
 							std::cout << "copying swapbuffer " << source << " to readbuffer " << target << ", " << tilerowsize << "bytes\n";
 
 							// now copy the tile-wise row in the swap buffer to the slicewise row in the read buffer
-							//memcpy ( &readbuffer [ ( stripstart + target ) ], 
-							//		 &swapbuffer [ source ], 
+							//memcpy ( &readbuffer [ ( stripstart + target ) ],
+							//		 &swapbuffer [ source ],
 							//		 tilerowsize );
 
 						} // for y
@@ -263,20 +263,20 @@ void getbinarydata(std::vector<std::string> file_list, unsigned bufsize, DataVec
 				// leave the swap buffer clean
 				swapbuffer.resize ( 0 );
 				copysize = imagesize * slicesinfile / mosaic_side / mosaic_side;
-  
+
 			} // if reorganisation
 
 			// write the read buffer to the keep buffer
 			// in the case of mosaic: write the first <slicesinfile> of the <mosaic_side> * <mosaic_side> tiles
-			std::memcpy ( &readbuffer [ 0 ], 
-			              &keepbuffer [ bufferoffset ], 
+			std::memcpy ( &readbuffer [ 0 ],
+			              &keepbuffer [ bufferoffset ],
 						  copysize );
 			bufferoffset += copysize;
-			
+
 		} // if (each image) successfully read
-		
+
 		delete(image);
-		
+
     } // for im
 
     switch(bitsperpixel) {
@@ -296,37 +296,37 @@ void getbinarydata(std::vector<std::string> file_list, unsigned bufsize, DataVec
 
     readbuffer.resize ( 0 );
     keepbuffer.resize ( 0 );
-	
+
 }
 
 void parseProtocol ( const char* protbuffer , unsigned long protlength, json& sidecar, std::string csafield, std::string protfield ) {
-	
-	std::string 
+
+	std::string
 		instr, lhs, rhs,
 		stringbuffer ( (char*) protbuffer, protlength );
-	std::stringstream 
+	std::stringstream
 		sbuffer;
 	sbuffer.str ( stringbuffer );
-	
+
 	while ( instr != "ASCCONV" ) // "### ASCCONV BEGIN ###": start of information block
 		sbuffer >> instr;
 	sbuffer >> instr; // BEGIN
 	sbuffer >> instr; // ###
-		
+
 	json protocol;
 	while ( instr != "###" ) {   // "### ASCCONV END ###": end of information block
-	
+
 		std::getline ( sbuffer, lhs, '\n' );
 		// std::cout << lhs << "\n";
-		
+
 		if ( lhs.find("__attribute__") == std::string::npos ) {			// this means: not found, leaving this in makes structs from arrays
-		
+
 			instr = lhs.substr ( 0, lhs.find ( " " ) );
 			rhs = trim ( lhs.substr ( lhs.find ( "=" ) +1 ) );
 			lhs = trim ( lhs.substr ( 0, lhs.find ( "=" ) ) );
-			
+
 			if ( ( instr != "###" ) && ( instr != "" ) ) {
-				
+
 				// deal with LHS
 				lhs ="." + lhs;											// leading struct
 				static const std::regex rgx_pattern("(\\.)[a-z]*([A-Z])");
@@ -335,11 +335,11 @@ void parseProtocol ( const char* protbuffer , unsigned long protlength, json& si
 				std::replace(lhs.begin(), lhs.end(), '[', '/');			// turn bracket to path -> nlohmann makes array
 				std::replace(lhs.begin(), lhs.end(), ']', '/');			// and numbers -> indices, accounting for gaps
 				lhs = std::regex_replace(lhs, std::regex("//"), "/");	// empty index/struct -> core dump
-				lhs.erase ( lhs.find_last_not_of ( "/" ) +1 );			// remove leading lowercase			
+				lhs.erase ( lhs.find_last_not_of ( "/" ) +1 );			// remove leading lowercase
 				json::json_pointer key { lhs };
-				
+
 				// deal with RHS
-				errno = 0; 
+				errno = 0;
 				char *test;
 				auto ftest = strtof ( rhs.c_str(), &test );
 
@@ -353,80 +353,80 @@ void parseProtocol ( const char* protbuffer , unsigned long protlength, json& si
 
 				//if ( lhs.find ( "SliceAcqOrder" ) != std::string::npos )
 				//	std::cout << std::setw(4) << protocol [ "SliceArray" ] << "lhs: " << lhs << ", instr: " << instr << ", rhs: " << rhs << ", ftest: " << ftest << "\n";
-				
+
 			} // if instr not empty
-			
+
 		} // if line not about array attributes
-		
+
 	} // while instr not ###
-	
+
 	if ( instr == "###" ) // that should be on the last line
 		sidecar [ csafield ] [ protfield ] = protocol;
 		//std::cout << "Siemens CSA parsed successfully\n";
 	else
 		std::cout << "Siemens CSA: left with instr " << instr << "\n";
-	
+
 	return;
 
 }
 
 void parseCSA ( const unsigned char* csabuffer , unsigned long csalength, json& sidecar, std::string jsonfield ) {
-	
+
 	// based on https://github.com/neurodebian/spm12/blob/master/spm_dicom_headers.m#L383
-	std::string 
+	std::string
 		stringbuffer ( (char*) csabuffer, csalength );
-	std::stringstream 
+	std::stringstream
 		sbuffer;
 	sbuffer.str ( stringbuffer );
-	
+
 	unsigned
 		csa_ver = 1;
 	char
 		csav [ 4+1 ] = { 0, 0, 0, 0 };
 	sbuffer.read ( csav, 4 );
 	if ( std::string ( csav ) == "SV10" ) { // csa2 -> read even further
-		csa_ver = 2;		
+		csa_ver = 2;
 		sbuffer.read ( csav, 4 );			// read 4 more bytes (should be 4b,3b,2b,1b)
 	} else 									// csa1 -> go back to start
-		sbuffer.seekg ( 0, sbuffer.beg );		
-	sidecar [ jsonfield ] [ "CSA_headertype" ] = csa_ver;	
+		sbuffer.seekg ( 0, sbuffer.beg );
+	sidecar [ jsonfield ] [ "CSA_headertype" ] = csa_ver;
 	// std::cout << "0. determined version, position " << sbuffer.tellg() << "\n";
-	
-	uint32_t 
+
+	uint32_t
 		num_tags;
-	sbuffer.read ( (char*) &num_tags, 4 ); 
+	sbuffer.read ( (char*) &num_tags, 4 );
 	// std::cout << "1. determined #tags(" << num_tags << "), position " << sbuffer.tellg() << "\n";
-	
+
 	uint32_t
 		them;
 	if ( ( num_tags < 1 ) || ( num_tags > 128 ) ) {
 		std::cerr << "number of CSA elements below 1 or above 128\n";
 		return;
 	} else {
-		sbuffer.read ( (char*) &them, 4 ); 
+		sbuffer.read ( (char*) &them, 4 );
 		if ( them != 'M' ) { // if next CSA character is 'M'
 			std::cerr << "CSA did not dontain the expected 'M'\n";
 			return;
 		} // if 'M'
 	} // if num_tags
 	// std::cout << "2. read 'M', position " << sbuffer.tellg() << "\n";
-	
-	char 
+
+	char
 		tagname[64+1], // character array to read each tag's name
 		vr[4+1],       // character array to read tag representation
 		*val;          // pointer to store (variable-length) values
-	uint32_t 
+	uint32_t
 		ni0 = 0;       // number of items of the 1st tag
-		
+
 	// process each tag 0 -- the name of the CSA header field
 	for ( uint32_t t = 0; t < num_tags; t++ ) {
-		
+
 		// we need to read at least 100 bytes ( 64 + 20 + 16 ) to the next value
 		if ( ( t < ( num_tags - 1 ) ) && ( 100 + ( long unsigned ) ( sbuffer.tellg() ) ) >= csalength ) {
 			std::cout << "remaining CSA block too small";
 			break;
 		}
-				
+
 		// read 64 bytes -> tag name
 		tagname [ 64 ] = 0;
 		vr      [  4 ] = 0;
@@ -434,9 +434,9 @@ void parseCSA ( const unsigned char* csabuffer , unsigned long csalength, json& 
 		std::string tagstr ( tagname );
 		// std::cout << "\t   tag " << t << " name: " << tagstr << "\n";
 		// std::cout << "\t3. tag name (64) read, position " << sbuffer.tellg() << "\n";
-		
+
 		// read 20 bytes
-		uint32_t 
+		uint32_t
 			vm, dt, ni, mm;
 		sbuffer.read ( (char*) &vm, 4 ); // value multiplicity
 		sbuffer.read ( (char*) &vr, 4 ); // value representation
@@ -447,7 +447,7 @@ void parseCSA ( const unsigned char* csabuffer , unsigned long csalength, json& 
 		// std::cout << "\t   vm " << vm << ", vr " << vr;
 		// std::cout <<    ", dt " << dt << ", ni " << ni << ", M " << mm << "\n";
 		// std::cout << "\t4. 5 more 4-byte words (20) read, position " << sbuffer.tellg() << "\n";
-			
+
 		// dt 3:   // DS -- decimal string
 		// dt 4:   // FD -- floating point double
 		// dt 5:   // FL -- floating point (single)
@@ -457,43 +457,43 @@ void parseCSA ( const unsigned char* csabuffer , unsigned long csalength, json& 
 		// dt 9:   // UL -- unsigned long
 		// dt 10:  // US -- unsigned short
 		bool numvalue = ( ( dt >= 3 ) && ( dt <= 10 ) ) ? true : false;
-		
+
 		// used in CSA1 (see below)
 		if ( !t )
 			ni0 = ni;
-		
-		// process each item -- the values 
+
+		// process each item -- the values
 		uint32_t itemlen;
 		std::vector<std::string> values;
 		std::vector<double> numvalues;
 
 		for ( uint32_t i = 0; i < ni; i++ ) {
-			
+
 			// std::cout << "\t\t   ";
 			// read 4 int32 (numbers of values in item), store in itemlen
 			for ( uint32_t k = 0; k < 4; k++ ) { // apparently first {P itemlen 77 Q} for some P,Q
-				sbuffer.read ( (char*) &mm, 4 ); // check: should be 77 (ASCI for 'M') 
+				sbuffer.read ( (char*) &mm, 4 ); // check: should be 77 (ASCI for 'M')
 				if ( ( k == 0 ) && ( csa_ver == 1 ) )
 					itemlen = mm - ni0; // see https://github.com/neurodebian/spm12/blob/master/spm_dicom_headers.m#L438
 				if ( ( k == 1 ) && ( csa_ver == 2 ) )
 					itemlen = mm;
 				// std::cout << "mm " << mm << ", ";
-			} //for k			
+			} //for k
 			// std::cout << "\n\t\t5. 4 item-specific 4-byte words (16) read, itemlen " << itemlen << ", position " << sbuffer.tellg() << "\n";
-			
+
 			// if the item size takes us past the end of the CSA block, adjust item length
 			if ( sbuffer.tellg() > long ( csalength - itemlen ) ) {
 				std::cerr << "tried to read past end of CSA block, changing item size from " << itemlen;
 				itemlen = csalength - sbuffer.tellg();
 				std::cerr << " to " << itemlen << "\n";
 			}
-			
+
 			// read the value as a char array then string
 			val = new char [ itemlen + 1 ];
 			val [ itemlen ] = 0;
 			sbuffer.read ( val, itemlen );
 			if ( itemlen > 0 ) {
-				if ( ( tagstr == "MrProtocol" ) || (tagstr == "MrPhoenixProtocol" ) ) 
+				if ( ( tagstr == "MrProtocol" ) || (tagstr == "MrPhoenixProtocol" ) )
 					parseProtocol ( val, itemlen, sidecar, jsonfield, tagstr );
 				else {
 					std::string itemval ( val );
@@ -505,7 +505,7 @@ void parseCSA ( const unsigned char* csabuffer , unsigned long csalength, json& 
 				}
 			} // if itemlen
 			delete[] val;
-			
+
 			// put value in sidecar
 			switch ( values.size() ) {
 			case 0:
@@ -525,14 +525,14 @@ void parseCSA ( const unsigned char* csabuffer , unsigned long csalength, json& 
 			} // switch itemlen
 
 			// read some bytes into array 'vr' to align with 4-byte address
-			uint32_t remain = ( ( sizeof ( uint32_t ) - ( itemlen % sizeof ( uint32_t) ) ) % sizeof ( uint32_t ) ); 
+			uint32_t remain = ( ( sizeof ( uint32_t ) - ( itemlen % sizeof ( uint32_t) ) ) % sizeof ( uint32_t ) );
 			sbuffer.read ( vr, remain );
 			// std::cout << "now read up until position " << sbuffer.tellg() << "\n";;
-						
+
 		} // for i (tag items)
-				
+
 	} // for t (tags)
-	
+
 	// check
 	auto check = true;
 	if ( check ) {
@@ -540,9 +540,9 @@ void parseCSA ( const unsigned char* csabuffer , unsigned long csalength, json& 
 		ofile << std::setw(4) << sidecar [ jsonfield ] << std::endl;
 		ofile.close();
 	}
-	
+
 	return;
-	
+
 }
 
 
@@ -559,13 +559,13 @@ class bisdicom : public bisbids<value_type> {
 
   private:
 
-    vec3<float> 
-		voxsize, 
-		slice_orx, 
-		slice_ory, 
+    vec3<float>
+		voxsize,
+		slice_orx,
+		slice_ory,
 		slice_pos,
 		slice_norm;
-    std::vector<size_t> 
+    std::vector<size_t>
 		im_size;
 	size_t
 		slicesinfile = 1;
@@ -574,7 +574,7 @@ class bisdicom : public bisbids<value_type> {
 		mosaic  = false;
 	size_t
 		mossize = 0;
-	std::vector<double> 
+	std::vector<double>
 		mosslicetimes;
 
     // necessary forward declarations -- function definitions are after class definition for general tidiness
@@ -595,11 +595,11 @@ class bisdicom : public bisbids<value_type> {
 	if(dcmfile.loadFile(fname.c_str()).good()) {
 
 	    // load the header into memory
-	    DcmDataset* const 
+	    DcmDataset* const
 			dcmdata = dcmfile.getDataset();
 
 	    // for storing DCMTK strings
-	    OFString 
+	    OFString
 			tmpofstring;
 
 	    if(dcmdata->findAndGetOFString(DCM_SeriesInstanceUID, tmpofstring).good())
@@ -613,7 +613,7 @@ class bisdicom : public bisbids<value_type> {
 		auto seriesslicedata = get_seriesslicedata(dirname); // data for DICOM files that match
 
 		// use the file list to load the intensities in all the slices,
-		// according to the scan dimensions and directions 
+		// according to the scan dimensions and directions
 		// (this order is given via a sorted file list)
 		auto seriesfiles = get_intensitydata(seriesslicedata, dcmdata);
 
@@ -658,17 +658,17 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 					valid_files.push_back ( seriesfile.path() );
     }
 
-    unsigned 
+    unsigned
 		added_slices = 0,
 		added_files  = 0;					// count added files, use 1st file for dimensions
-    auto 
+    auto
 		file_iter = valid_files.begin();	// iterator for files in the list with correct UID
 
     // loop over the list of dicom files with the right series UID
     while(file_iter != valid_files.end()) {
-		
+
 	    seriesslicedata.push_back ( { .filename = ( *file_iter ) } );
-		
+
 		DcmFileFormat tmpfile;
 		tmpfile.loadFile ( ( *file_iter ).c_str() );
 		DcmDataset* const tmpdata = tmpfile.getDataset();
@@ -678,7 +678,7 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 			// general info, image size
 			superclass::sidecar["Modality"]   = getItemString (                      tmpdata, DCM_Modality             );
 			superclass::sidecar["BitsStored"] = atoi          ( getItemStringArray ( tmpdata, DCM_BitsStored ).c_str() );
-			int 
+			int
 				number_fread = atoi(getItemStringArray(tmpdata, DCM_NumberOfTemporalPositions).c_str());
 			if (number_fread < 1 ) // sometimes this is omitted if there is just 1 timepoint?
 				number_fread = 1;
@@ -703,11 +703,11 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 
 			if (	( voxsize[0]	< 0 ) ||
 					( voxsize[1]	< 0 ) ||
-					( voxsize[2]	< 0 )	) {				
+					( voxsize[2]	< 0 )	) {
 
 				std::cerr << "missing data for file \n " << ( *file_iter ) << ",\ncannot read required info\n";
 				break;
-				
+
 			}
 
 			// store the voxel size in the sidecar
@@ -760,10 +760,10 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 					(superclass::sidecar["SlicesDimension"] == 1) ?
 					((superclass::sidecar["PhaseEncodingDimension"] == 0) ? 2 : 0) :  //    coronal: either 0 or 2
 						(superclass::sidecar["PhaseEncodingDimension"] == 1) ? 2 : 1; //   sagittal: either 1 or 2
-						
+
 			// get rescale slope and intercept - first try DCM_RescaleSlope/Intercept
 			//        and if that does not work try DCM_RealWorldValueSlope/Intercept
-			float 
+			float
 				scl_slope = 1,
 				scl_inter = 0;
 			scl_slope = getItemDouble(tmpdata, DCM_RescaleSlope);
@@ -778,9 +778,9 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 			superclass::sidecar[ "RescaleSlope"     ] = scl_slope;
 			superclass::sidecar[ "RescaleIntercept" ] = scl_inter;
 
-			// if this is a multislice image (mosaic, advanced dicom or other) 
+			// if this is a multislice image (mosaic, advanced dicom or other)
 			// store that in the JSON for later use: geometry adjustments etc.
-			DcmElement 
+			DcmElement
 				*tmpelem;
 			tmpdata->findAndGetElement(DCM_ImageType, tmpelem, OFTrue, OFTrue);
 			tmpelem->getOFStringArray(tmpofstring);
@@ -788,16 +788,16 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 				tmpstring;
 			std::stringstream
 				sstr ( tmpofstring.c_str() );
-			std::vector<std::string> 
+			std::vector<std::string>
 				image_types;
 			while ( std::getline ( sstr, tmpstring, '\\' ) )
 				image_types.push_back ( tmpstring );
-			for ( auto s: image_types ) 
+			for ( auto s: image_types )
 				if ( s == "MOSAIC" )
 					mosaic = true;
 
 			// We may want to store the DICOM tags that we can find in the JSON sidecar
-			std::stringstream 
+			std::stringstream
 				dcm_json;
 			DcmJsonFormatCompact
 				fmt ( OFFalse ); // True: print meta-info
@@ -817,7 +817,7 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 					*tmpbuffer;
 				const double
 					*tmpbuf_fd;
-				unsigned long 
+				unsigned long
 					csalength;
 
 				slicesinfile = atoi ( getItemStringArray ( tmpdata, DcmTagKey ( 0x0019, 0x100a ) ).c_str() );
@@ -830,37 +830,37 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 				if ( csalength >= slicesinfile )
 					for ( unsigned i = 0; i < csalength; i++ )
 						mosslicetimes.push_back ( tmpbuf_fd [ i ] );	// put the times in the vector
-						
+
 				mossize = std::ceil ( std::sqrt ( slicesinfile ) );		// square number of tiles in mosaic
 				im_size [ 0 ] /= mossize;
 				im_size [ 1 ] /= mossize;
-				
+
 			} // if ( mosaic )
 
 		} // if ( ! added_slices )
 
 		for ( size_t s = 0; s<slicesinfile; s++ ) {
-			
+
 			slicestats *currentslice = ( &(seriesslicedata[added_slices]) );
-			(*currentslice).index = s; 
-			
+			(*currentslice).index = s;
+
 			// get instance number of single file / slice 0
 			(*currentslice).innumber =
 				static_cast<unsigned>(std::stof(getItemString(tmpdata, DCM_InstanceNumber, 0, 0).c_str()));
 
 														/////////////////////////////////////////////////////////////
 			if ( !mosaic ) {							// if no mosaic, fill from header
-				
+
 				// get acquisition number of single file / slice 0
 				(*currentslice).acqnumber =
 					static_cast<unsigned>(std::stof(getItemString(tmpdata, DCM_AcquisitionNumber, 0, 0).c_str()));
-				
+
 				// get acquisition time of single file / slice 0
-				(*currentslice).aqtime = 
+				(*currentslice).aqtime =
 					static_cast<float>(std::stof(getItemString(tmpdata, DCM_AcquisitionTime).c_str()));
 				// get acquisition time of single file / slice 0
-				(*currentslice).sliloc = 
-					static_cast<float>(std::stof(getItemString(tmpdata, DCM_SliceLocation).c_str()));				
+				(*currentslice).sliloc =
+					static_cast<float>(std::stof(getItemString(tmpdata, DCM_SliceLocation).c_str()));
 
 				// position / offset from start of the slice in the current volume
 				slice_pos[0] =
@@ -869,39 +869,41 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 				static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 1).c_str())));
 				slice_pos[2] =
 				static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 2).c_str())));
-															
-			} else { 
-				
+
+			} else {
+
 				(*currentslice).aqtime = static_cast<float>(std::stof(getItemString(tmpdata, DCM_AcquisitionTime).c_str()));
 														/////////////////////////////////////////////////////////
-				if (!s) {								// if mosaic -> set values for slice 0 (not in header)		
+				if (!s) {								// if mosaic -> set values for slice 0 (not in header)
 					(*currentslice).acqnumber = 0;
-					(*currentslice).sliloc    = 0;					
+					(*currentslice).sliloc    = 0;
 				} else {								/////////////////////////////////////////////////////////
 														// for slices 1 and up these are in the header
-					(*currentslice).acqnumber = superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "SliceAcqOrder"     ] [ s ];				
-					(*currentslice).sliloc    = superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Pos"               ] [ s ];					
+					(*currentslice).acqnumber = superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "SliceAcqOrder"     ] [ s ];
+					(*currentslice).sliloc    = superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Pos"               ] [ s ];
 					(*currentslice).aqtime   += mosslicetimes [ s-1 ];
 				}
-				
+
 				// we assume thet innumber[0] is actually the mosaic number (copy for all slices)
 				// and that acqnumber[0] is as well -> set to 0 // see the s==0 section
-				//(*currentslice).innumber= superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Asc"               ] [ s ];			
-				slice_pos[0] = superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ s ] [ "Position" ] [ "Sag" ]; 
-				slice_pos[1] = superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ s ] [ "Position" ] [ "Cor" ]; 
-				slice_pos[2] = superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ s ] [ "Position" ] [ "Tra" ]; 
-			
+				//(*currentslice).innumber= superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Asc"               ] [ s ];
+				slice_pos[0] = superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ s ] [ "Position" ] [ "Sag" ];
+				slice_pos[1] = superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ s ] [ "Position" ] [ "Cor" ];
+				slice_pos[2] = superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ s ] [ "Position" ] [ "Tra" ];
+
 			} // if mosaic
-			
+
 			// compute the z position as projected along the normal
 			(*currentslice).slipos =
 				(slice_pos & slice_norm); // for type vec3 (see bisimage_maths.hpp) the & operator gives dot product
 
-			// add copy of current slice for next - 
-			// we only do this if our file has more than one slices 
-			// (i.e. inside the 'for s' loop) to have a new 
+			// std::cout << "slice_pos" << slice_pos << " and slice_norm " << slice_norm << " leading to slipos " << (*currentslice).slipos << "\n";
+
+			// add copy of current slice for next -
+			// we only do this if our file has more than one slices
+			// (i.e. inside the 'for s' loop) to have a new
 			if ( s < ( slicesinfile - 1 ) ) {
-				slicestats 
+				slicestats
 					last_copy {
 						seriesslicedata.back().filename,		//	string	filename, for single-slice dicom every slice has a unique file name
 						seriesslicedata.back().innumber,			//	int	instance number: should be from 1 to #files
@@ -910,8 +912,8 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 						seriesslicedata.back().slipos,				//	float	slice position, computed from ImagePOsitionPatient and ImageOrientationPatient
 						seriesslicedata.back().sliloc,				//	float 	slice location, backup method sometimes (eg Philips DTI) using SliceLocation
 						seriesslicedata.back().index				//	int	index, for multi-slice dicoms (e.g. mosaic), this number can be higher than 0
-					}; // last_copy 
-				seriesslicedata.push_back ( last_copy );				
+					}; // last_copy
+				seriesslicedata.push_back ( last_copy );
 			} // slicesinfile
 			added_slices++; // max value: 1 less than #slice in file
 
@@ -929,7 +931,7 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 		// sometimes (e.g. in ASL) one acquisition is multiple frames
 		std::sort(begin(seriesslicedata), end(seriesslicedata),
 				  [](auto const& t0, auto const& t1) { return ((t0).innumber < (t1).innumber); });
-				  
+
 		// Check if slice 0 and 1 have the same slice position. This is true in e.g. Philips fMRI
 		// (see https://github.com/rordenlab/dcm2niix/tree/master/Philips), stable sort by aq time.
 		// Stable sort respects previous ordering where possible.
@@ -945,26 +947,26 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 			std::stable_sort( begin(seriesslicedata), end(seriesslicedata),
 							  [&](auto const& t0, auto const& t1) { return ( fac*(t0).slipos < fac*(t1).slipos ) ; } );
 			auto lowest_innumber = seriesslicedata[0].innumber;
-			auto first_slipos = std::count_if ( begin(seriesslicedata), end(seriesslicedata), 
+			auto first_slipos = std::count_if ( begin(seriesslicedata), end(seriesslicedata),
 												[&](auto const& fd0) { return ( (fd0).sliloc == seriesslicedata[0].sliloc ); } ) ;
 			std::stable_sort( begin(seriesslicedata), end(seriesslicedata),
 							  [&](auto const& t0, auto const& t1) { return ( ((t0).innumber-lowest_innumber)%first_slipos < ((t1).innumber-lowest_innumber)%first_slipos ); } );
 		}
-	
+
 	} else { // mosaic -> sort by innumber then sliloc
-	
+
 			std::stable_sort( begin(seriesslicedata), end(seriesslicedata),
 							  [&](auto const& t0, auto const& t1) { return ( ( (t0).innumber < (t1).innumber ) || ( ( (t0).innumber == (t1).innumber ) && ( (t0).acqnumber < (t1).acqnumber ) ) ); } );
 
 	}
-	
-	// set the matrix Rdcm, the coordinate transform 
+
+	// set the matrix Rdcm, the coordinate transform
 	// between voxel indices and world coordiinates
-	
+
 	// first file with the lowest slice position
 	// and use its coordinates for the bounding box
 	DcmFileFormat tmpfile;
-	tmpfile.loadFile ( seriesslicedata[0].filename.c_str() ); 
+	tmpfile.loadFile ( seriesslicedata[0].filename.c_str() );
 	DcmDataset* const tmpdata = tmpfile.getDataset();
 	slice_pos[0] = static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 0).c_str())));
 	slice_pos[1] = static_cast<float>(std::stof(std::string(getItemString(tmpdata, DCM_ImagePositionPatient, 1).c_str())));
@@ -974,7 +976,7 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 	mat4<float>
 		Rdcm,
 		Rvox;
-	vec3<float> 
+	vec3<float>
 		dim ( im_size[0], im_size[1], im_size[2] );
 
 	// set columns 1..3 to slice orientations (X and Y) and slice normal, respectively
@@ -982,17 +984,17 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 	Rdcm.getcol ( slice_ory,  1 );
 	Rdcm.getcol ( slice_norm, 2 );
 	Rdcm[3][3] = 1;
-	
+
 	// set diagonal of rvox to voxel sizes
 	Rvox[0][0] = voxsize[0];
 	Rvox[1][1] = voxsize[1];
 	Rvox[2][2] = voxsize[2];
 	Rvox[3][3] = 1;
-	
+
 	// multiply
 	Rdcm *= Rvox;
 
-	// now add the slice position as the 
+	// now add the slice position as the
 	Rdcm.getcol( slice_pos, 3 );
 
 	// For Siemens mosaic, slice_pos is the corner of the mosaic.
@@ -1000,37 +1002,37 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 	// it is necessary to correct column 3.
 	if ( mosaic and ( mossize > 1 ) ) {
 
-		vec4 <float> 
+		vec4 <float>
 			corr1 (	(mossize - 1) * dim[0] / 2, 	// correction in pixels from
 					(mossize - 1) * dim[1] / 2,		// mosaic-cornet to slice-corner
 					0,
 					1 ),
 			corr2 ( Rdcm * corr1 );					// corrected world space
 		Rdcm.getcol ( corr2, 3 );					// set this as Rdcm colunn 4
-		
+
 		// Now check if each dimension 'has a voxel size'
-		// 
+		//
 		//
 		corr1.getcol ( Rdcm, 2 );					// the slice direction of Rdcm (corr1) vs the slice direction in CSA (corr2)
 		corr2[0] = static_cast<float> ( superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Normal" ] [ "Sag" ] );
 		corr2[1] = static_cast<float> ( superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Normal" ] [ "Cor" ] );
 		corr2[2] = static_cast<float> ( superclass::sidecar [ "seriesCSA"  ] [ "MrPhoenixProtocol" ] [ "SliceArray" ] [ "Slice" ] [ 0 ] [ "Normal" ] [ "Tra" ] );
-		
-		auto 
-			m1 = 0, 
+
+		auto
+			m1 = 0,
 			m2 = 0;
 		for ( size_t i = 1; i < 3; i++ ) {
 			if ( fabs ( corr1[i] ) > fabs ( corr1[m1] ) ) m1 = i;
 			if ( fabs ( corr2[i] ) > fabs ( corr2[m2] ) ) m2 = i;
 		} // biggest coefficient Rdcm[slice] and clice normal
-		
+
 		// if opposite in sign -> negate row 2 of Rdcm
 		if ( ( corr1[m1] * corr2[m2] ) < 1 ) {
 			for ( size_t i = 0; i < 4; i++ )
 				Rdcm[i][2] *= -1;
 		}
-			
-		
+
+
 	} // if mosaic
 
 	// store the Rdcm in the JSON sidecar
@@ -1038,23 +1040,23 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 	for ( size_t i = 0; i < 4; i++ )
 		for ( size_t j = 0; j < 4; j++ )
 			superclass::sidecar [ "Rdcm" ] [ i ] [ j ] = Rdcm [ i ] [ j ];
-	
+
     auto diag = false;
     if (diag) {
-		
+
 		// print diagnostics -- for weird slice orderings like
 		//							Philips fMRI   -> slice 0 of every volume, slice 1 of every volume, etc
 		//                          Siemens Mosaic -> multiple slices turned into patchwork
 
 		for(auto slicedata : seriesslicedata)
-			std::cout << std::setprecision(6) 
+			std::cout << std::setprecision(6)
 					<< slicedata.filename << "\t" << slicedata.innumber << "\t" << slicedata.acqnumber << "\t"
 					<< slicedata.aqtime   << "\t" << slicedata.slipos   << "\t" << slicedata.sliloc   << std::endl;
-				  
+
     }
 
     return (seriesslicedata);
-	
+
 }
 
 /** \brief get_intensitydata: 	given a std::vector of slicestats (see above)
@@ -1065,7 +1067,7 @@ template <class value_type> std::vector<slicestats> bisdicom<value_type>::get_se
 template <class value_type>
 std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<slicestats>& series_slicedata, DcmDataset* const dcmdata ) {
 
-    auto 
+    auto
 		num_slices  = series_slicedata.size(), // number of correct slices with correct UID
 		num_files   = num_slices;
 	if ( mosaic )                              // mosaic: multiple slices stored as chequerboard
@@ -1079,12 +1081,10 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
 	    break;
     superclass::sidecar["Slices"] = sli;
 
-    std::cout << "counted slices (before returning to pos 0): " << sli << std::endl;
-
     // double check if this is still true at the end
     sli = series_slicedata.size() - 2;
     for(auto startpos = (series_slicedata[num_slices - 1]).sliloc; sli > 0; sli--)
-	if((series_slicedata[sli]).sliloc == startpos) { 
+	if((series_slicedata[sli]).sliloc == startpos) {
 		sli++;
 	    break;
 	}
@@ -1095,10 +1095,12 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
     // In the first volume, find the sign of the slice positioning: if the
     // position of slice 1 is lower than slice 0 then -1, otherwise +1.
     // THIS NEEDS TO CORRESPOND TO THE SLICE NORMAL for determining rotate 180 or flip
-	float 
+	float
 		slice_delta = series_slicedata[1].slipos - series_slicedata[0].slipos;
+	//if ( !slice_delta )
+
     superclass::sidecar["Slicedirection"] = static_cast<int>(bis::signum<float>( slice_delta ));
-	
+
     // in the case of 2D files, #volumes = #files / (slices per volume)
     // TR of a volume = start time of volume 1 - start time of volume 0
     // (we know sometimes images are acquired in pairs - cater for that)
@@ -1154,9 +1156,9 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
     // check bisimage size
     std::cout << "data sizes: " << superhyper::getsize() << std::endl;
 
-    // read in the slices -- don't look, dirty bit of code... 
+    // read in the slices -- don't look, dirty bit of code...
 	// ( num_slices / num_files ) > 1 if multiple slices in a dicom
-    // getbinarydata ( seriesfiles, superhyper::data.size(), superhyper::getdata_ptr(), num_slices / num_files, mossize, dcmdata );
+    getbinarydata ( seriesfiles, superhyper::data.size(), superhyper::getdata_ptr(), num_slices / num_files, mossize, dcmdata );
 
     return (seriesfiles);
 }
@@ -1167,17 +1169,17 @@ std::vector<std::string> bisdicom<value_type>::get_intensitydata(std::vector<sli
  */
 template <class value_type> void bisdicom<value_type>::get_metadata(std::vector<std::string>& series_files) {
 
-	mat4<float> 
-		Rdcm (	superclass::sidecar["Rdcm"][0][0], superclass::sidecar["Rdcm"][0][1], superclass::sidecar["Rdcm"][0][2], superclass::sidecar["Rdcm"][0][3], 
-				superclass::sidecar["Rdcm"][1][0], superclass::sidecar["Rdcm"][1][1], superclass::sidecar["Rdcm"][1][2], superclass::sidecar["Rdcm"][1][3], 
-				superclass::sidecar["Rdcm"][2][0], superclass::sidecar["Rdcm"][2][1], superclass::sidecar["Rdcm"][2][2], superclass::sidecar["Rdcm"][2][3], 
+	mat4<float>
+		Rdcm (	superclass::sidecar["Rdcm"][0][0], superclass::sidecar["Rdcm"][0][1], superclass::sidecar["Rdcm"][0][2], superclass::sidecar["Rdcm"][0][3],
+				superclass::sidecar["Rdcm"][1][0], superclass::sidecar["Rdcm"][1][1], superclass::sidecar["Rdcm"][1][2], superclass::sidecar["Rdcm"][1][3],
+				superclass::sidecar["Rdcm"][2][0], superclass::sidecar["Rdcm"][2][1], superclass::sidecar["Rdcm"][2][2], superclass::sidecar["Rdcm"][2][3],
 				superclass::sidecar["Rdcm"][3][0], superclass::sidecar["Rdcm"][3][1], superclass::sidecar["Rdcm"][3][2], superclass::sidecar["Rdcm"][3][3]	);
-	
+
     // NIfTI voxel to mm transform
-    mat4<float> 
-		Rnii(	-Rdcm[0][0], -Rdcm[0][1], -Rdcm[0][2], -Rdcm[0][3], 
-				-Rdcm[1][0], -Rdcm[1][1], -Rdcm[1][2], -Rdcm[1][3], 
-				 Rdcm[2][0],  Rdcm[2][1],  Rdcm[2][2],  Rdcm[2][3], 
+    mat4<float>
+		Rnii(	-Rdcm[0][0], -Rdcm[0][1], -Rdcm[0][2], -Rdcm[0][3],
+				-Rdcm[1][0], -Rdcm[1][1], -Rdcm[1][2], -Rdcm[1][3],
+				 Rdcm[2][0],  Rdcm[2][1],  Rdcm[2][2],  Rdcm[2][3],
 				 0, 0, 0, 1);
 
     // usually (if slices go top -> bottom) we want to flip the Y axis
@@ -1207,7 +1209,7 @@ template <class value_type> void bisdicom<value_type>::get_metadata(std::vector<
 				for(size_t i = 0; i < sx; i++)
 				std::swap<value_type>( superhyper::at ( { i, j, k , t } ), superhyper::at ( { i, sy1 - j, k, t } ) );
 				// std::swap<value_type>( (*this)[{i, j, k, t}], (*this)[{i, sy1 - j, k, t}]);
-			
+
     }; // if slicedirection
 
     //
@@ -1241,11 +1243,11 @@ template <class value_type> void bisdicom<value_type>::get_metadata(std::vector<
 	    }     // if >2
 	}         // if >1
     }             // if >0
-	
+
 	// retrieve the slope and intercept from the sidecar
 	supersuper::header->scl_slope = float ( superclass::sidecar["RescaleSlope"] );
 	supersuper::header->scl_inter = float ( superclass::sidecar["RescaleIntercept"] );
-	
+
     // set cal_min and cal_max as highest and lowest nonzero values
 	/*
     auto ordered_nonzero = std::vector<value_type>(0);
@@ -1257,7 +1259,7 @@ template <class value_type> void bisdicom<value_type>::get_metadata(std::vector<
     supersuper::header->cal_max = 10;//float(ordered_nonzero.back());
     ordered_nonzero.resize(0); // does that clear the memory?
 	*/
- 
+
     // assume mm as vox units, s as time units
     supersuper::header->xyz_units = NIFTI_UNITS_MM;
     supersuper::header->time_units =
