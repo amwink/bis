@@ -812,65 +812,22 @@ const matN<T,S> hadamard ( const matN<U,S>& m, const matN<T,S>& n ) { return m.h
 
 // aliases for 2-, 3- and 4-dimensional vectors
 template <typename T>
-using vec2 = vecN<T,2>;
+using vec2 = vecN < T, 2 >;
 
 template <typename T>
-using vec3 = vecN<T,3>;
+using vec3 = vecN < T, 3 >;
 
 template <typename T>
-using vec4 = vecN<T,4>;
+using vec4 = vecN < T, 4 >;
 
 template <typename T>
-using mat2 = matN<T,2>;
+using mat2 = matN < T, 2 >;
 
 template <typename T>
-using mat3 = matN<T,3>;
+using mat3 = matN < T, 3 >;
 
 template <typename T>
-using mat4 = matN<T,4>;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-template<class T>
-inline T fMaxOf2(T min, T max)
-{
-    return max > min ? max : min;
-}
-
-template<class T>
-inline T fMinOf2(T min, T max)
-{
-    return max > min ? min : max;
-}
-
-
+using mat4 = matN < T, 4 >;
 
 
 

@@ -1,8 +1,8 @@
 -I/home/amwink/software/cpp/bis/z
--I/usr/include/c++/10
--I/usr/include/x86_64-linux-gnu/c++/10
--I/usr/include/c++/10/backward
--I/usr/lib/gcc/x86_64-linux-gnu/10/include
+-I/usr/include/c++/11
+-I/usr/include/x86_64-linux-gnu/c++/11
+-I/usr/include/c++/11/backward
+-I/usr/lib/gcc/x86_64-linux-gnu/11/include
 -I/usr/local/include
 -I/usr/include/x86_64-linux-gnu
 -I/usr/include

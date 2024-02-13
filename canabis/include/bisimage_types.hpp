@@ -16,6 +16,15 @@ namespace bis {
 
     
     
+/** \brief number_error
+ *
+ *  number to indicate that I/O or conevrsion to a number has failed
+ * 
+ */
+constexpr int number_error = std::numeric_limits<int>::min();
+
+
+
 /** \brief NO/DO read data enumeration for easily readable code
  */
 enum readdata {

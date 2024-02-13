@@ -7,66 +7,15 @@
 
 using namespace bis;
 
+
+
+// forward declaration for a helper function
 std::vector < std::filesystem::path > fullpath_extract ( std::filesystem::path dicomsdir, 
-														 std::filesystem::path dicomzip ) {
-															 
-	std::vector < std::filesystem::path > 
-		file_list;
-
-	int  
-		zip_err = 0;
-	auto 
-		zip_archive = zip_open ( dicomzip.c_str(), 0, &zip_err );
-	auto  
-		files_total = zip_get_num_files ( zip_archive );
-	struct zip_stat
-		zst;
-	
-	// init the zip archive stats, including its list of files
-	zip_stat_init ( &zst );
-	
-	// extract all files from the list
-	for ( int i = 0; i < files_total; i++ ) {
-		
-		auto 
-			file_in_zip = zip_fopen_index ( zip_archive, i, 0 );
-		
-		if ( file_in_zip ) {
-
-			// init the archived file's stats,, including its name and uncompressed size
-			zip_stat_index ( zip_archive, i, 0, &zst );
-			std::string
-				fname ( zst.name );								
-			auto 
-				*contents = new char [ zst.size ];
-			auto 
-				inpath = dicomsdir;			
-
-			// get the current name -- assume files in directories occur after them in the list
-			inpath += ( "/tmp/" + fname );
-			
-			// if directory (trailing '/') create that, if file extract it
-			if ( *fname.rbegin() == '/' )
-				std::filesystem::create_directories ( inpath );				
-			else {
-				zip_fread ( file_in_zip, contents, zst.size );
-				if ( std::ofstream ( inpath , std::ofstream::binary ).write( contents, zst.size ) )
-					file_list.push_back( inpath );
-			} // if file not dir
-				
-			// free the space used for extraction
-			delete [] contents;
-				
-		} // if file_in_zip
-		
-	} // for i	
-
-	return ( file_list );
-
-}
+														 std::filesystem::path dicomzip );
 
 
 
+// running the tests
 int main ( int argc, char* argv[] )
 {
     
@@ -84,13 +33,13 @@ int main ( int argc, char* argv[] )
     std::cout << "hello from canabis! \n";
 
     auto 
-        do_2d      = false,	// test 2D vectors & matrices
-        do_3d      = false,	// test 3D vectors & matrices ( only tested if do_2d )
-        do_4d      = false,	// test 3D vectors & matrices ( only tested if do_3d )    
-        do_nifti   = false,	// test nifti file interactions
-        do_dicom   = true,	// test dicom import
-        do_reduce  = false,	// test dimensionality reducer 
-		do_maxtree = false;	// test maxtree
+        do_2d      = true,	// test 2D vectors & matrices
+        do_3d      = true,	// test 3D vectors & matrices ( only tested if do_2d )
+        do_4d      = true,	// test 3D vectors & matrices ( only tested if do_3d )    
+        do_nifti   = true,	// test nifti file interactions
+        do_dicom   = false,	// test dicom import
+        do_reduce  = true,	// test dimensionality reducer 
+		do_maxtree = true;	// test maxtree
 
     ////////////////////////////////////////
     // 1.
@@ -268,20 +217,24 @@ if ( do_2d || do_3d || do_4d ) {
 				 ( possible_zip.path().filename() != "siemensDicom.zip" ) )
 				dicomzips.push_back ( possible_zip.path() );		
 
+		for ( auto f: dicomzips ) std::cout << f << "\n";
+
 		for ( auto dicomzip: dicomzips ) {
+		//for ( auto dicomzip: dicomzips | std::views::reverse ) {
 			
-			// only for some files
-			if ( dicomzip == "/home/amwink/software/cpp/bis/data/dicom/siemensDicom/dwi_dwi/MRI_DTI_MR-EPAD-SingleShell-DTI48-19_.zip" ) {
-			
+			// put in the faulty ones first 
+			auto 
+				dicomtest = "/home/amwink/software/cpp/bis/data/dicom/siemensDicom/dwi_dwi/MRI_DTI_MR-EPAD-SingleShell-DTI48-19_.zip";
+			dicomzip  = dicomtest;
 			std::cout << "unpacking " << dicomzip << "... " << std::endl;
 			
 			auto 
-				dicomlist = fullpath_extract( dicomsdir, dicomzip );
+				dicomlist = fullpath_extract ( dicomsdir, dicomzip );
 			auto 
 				counter = 0;
 				
 			// list files (optional)
-			bool listfiles = false;
+			bool listfiles = true;
 			if ( listfiles )
 				for ( auto v: dicomlist )
 					printf ( "dicom %04d in %s: %s\r", counter++, dicomsdir.c_str(), v.c_str() );
@@ -306,8 +259,11 @@ if ( do_2d || do_3d || do_4d ) {
 				newname = dcmslice.substr ( 0, dcmslice.find_last_of('.') ) + ".nii.gz";
 			std::cout << "writing: " << newname << "... " << std::endl;	
 			test_dicom.write ( newname );   
-					
-			} // only for some files
+			
+			if ( dicomzip == dicomtest ) {
+				std::cout << "Using the test file " << dicomtest << ", 1 DICOM conversion only.";
+				break;
+			}
 			
 		} // for dicomzip
 	
@@ -328,7 +284,9 @@ if ( do_2d || do_3d || do_4d ) {
         std::iota ( values.begin(), values.end(), 0 );
         image4d.vector_import( values );
         std::cout << image4d.vector_export() << std::endl;
-        for ( auto dim: {0,1,2,3} ) {
+		std::cout << "element { 0, 1, 2, 3 }: " << image4d ( { 0, 1, 2, 3 } ) << std::endl;
+		//std::cout << image4d << std::endl;
+        for ( auto dim: {3,2,1,0} ) {
             auto sum_image = image4d.sum(dim);
             std::cout << sum_image << std::endl;
         }
@@ -373,7 +331,7 @@ if ( do_2d || do_3d || do_4d ) {
 		auto cnum = 0;
         std::cout << "writing mask of component " << cnum << " and kids ..." << std::endl;	
 		auto 
-			mri_set = mri_mt.setpoints ( 1, 0, DO_SORT, DO_LEVEL );		// auto: output type setpoints() fixed
+			mri_set = mri_mt.setpoints ( 1, 0, DO_SORT, DO_LEVEL );			// auto: output type setpoints() fixed
 		bisnifti < unsigned short >											// not auto: cast bisimage to bisnifti
 			nifti_set ( mri_set );		
 		nifti_set.write ( "/tmp/mri_mask.nii.gz" );
@@ -385,3 +343,66 @@ if ( do_2d || do_3d || do_4d ) {
     return 0;
     
 }
+
+
+
+std::vector < std::filesystem::path > fullpath_extract ( std::filesystem::path dicomsdir, 
+														 std::filesystem::path dicomzip ) {
+															 
+	std::vector < std::filesystem::path > 
+		file_list;
+
+	int  
+		zip_err = 0;
+	auto 
+		zip_archive = zip_open ( dicomzip.c_str(), 0, &zip_err );
+	auto  
+		files_total = zip_get_num_files ( zip_archive );
+	struct zip_stat
+		zst;
+	
+	// init the zip archive stats, including its list of files
+	zip_stat_init ( &zst );
+	
+	// extract all files from the list
+	for ( int i = 0; i < files_total; i++ ) {
+		
+		auto 
+			file_in_zip = zip_fopen_index ( zip_archive, i, 0 );
+		
+		if ( file_in_zip ) {
+
+			// init the archived file's stats,, including its name and uncompressed size
+			zip_stat_index ( zip_archive, i, 0, &zst );
+			std::string
+				fname ( zst.name );								
+			auto 
+				*contents = new char [ zst.size ];
+			auto 
+				inpath = dicomsdir;			
+
+			// get the current name -- assume files in directories occur after them in the list
+			inpath += ( "/tmp/" + fname );
+			
+			// if directory (trailing '/') create that, if file extract it
+			if ( *fname.rbegin() == '/' )
+				std::filesystem::create_directories ( inpath );				
+			else {
+				zip_fread ( file_in_zip, contents, zst.size );
+				if ( std::ofstream ( inpath , std::ofstream::binary ).write( contents, zst.size ) )
+					file_list.push_back( inpath );
+			} // if file not dir
+				
+			// free the space used for extraction
+			delete [] contents;
+				
+		} // if file_in_zip
+		
+	} // for i	
+
+	return ( file_list );
+
+}
+
+
+

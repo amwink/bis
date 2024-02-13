@@ -343,7 +343,7 @@ class bisimage {
      * WARNING this may lead to undefined data!!!
      * 
      * You probably need to read new data before continuing.
-     * (that's why it's newsize not resize)
+     * (that's why it's newsizes not resize)
      * 
      */
     void newsizes ( std::initializer_list<size_t> newdims ) {
@@ -1567,12 +1567,12 @@ bool GetWatershedImage() {
     size_t NP=getdatasize();
 
     std::vector<int>
-    Index   (NP),
-            Dist    (NP),
-            Label   (NP),
-            Hist    (max_value + 2),
-            CHist   (max_value + 2),
-            NeigArr (200);
+		Index   ( NP ),
+		Dist    ( NP ),
+        Label   ( NP ),
+        NeigArr ( 200 ),
+        Hist    ( max_value + 2),
+        CHist   ( max_value + 2);
 
     // check if image needs inverting and do so if yes
     // (if pixel [0] has lower value than maximum/2 ?)
@@ -1693,9 +1693,9 @@ bool GetWatershedImage() {
         } // end for
     } // loop over h
 
-    int MINS = (1<<15) -1;
-    for ( unsigned i=0; i<NP; i++)
-        data[i] = short(fMinOf2<int>(MINS, Label[i]));
+    int MINS = ( 1<<15 ) - 1;
+    for ( unsigned i = 0; i < NP; i++ )
+        data[i] = short ( std::min ( MINS, Label[i] ) );
 
     return true;
 }  

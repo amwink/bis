@@ -60,7 +60,7 @@ namespace bis {
         
 			bisbids () : bisnifti <value_type> () {}; // default constructor (required for bisdicom subclass)
 		
-            bisbids ( std::string fname ) : bisnifti <value_type> ( fname ){ // constructor that reads from a file
+            bisbids ( std::string fname ) : bisnifti <value_type> ( fname ) { // constructor that reads from a file
 
 				std::string	jsonfile = sidecarname ( fname );
 				getjson ( jsonfile );
@@ -84,13 +84,21 @@ namespace bis {
 				
 			}
 
+			// write the sidecar
+			void write_sidecar ( std::string niiname ) {
+				
+				std::ofstream jfile ( sidecarname ( niiname ) );
+				jfile << std::setw ( 4 ) << sidecar << std::endl;
+				jfile.close();
+				
+			}
+
 			// overloaded function from bisnifti
 			void write ( std::string filename = "" ) {
-
+				
 				superclass::write ( filename );
-				std::ofstream jfile ( sidecarname ( filename ) );
-				jfile << std::setw ( 4 ) << sidecar << std::endl;
-
+				write_sidecar( filename );
+				
 			}
 
 
