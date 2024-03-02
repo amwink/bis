@@ -4,16 +4,30 @@
   <wxString Value="/home/amwink/software/cpp/bis/bis.workspace" Name="m_workspaceName"/>
   <TabInfoArray Name="TabInfoArray">
     <TabInfo>
-      <wxString Value="/home/amwink/software/cpp/bis/canabis/include/bisdicomimage.hpp" Name="FileName"/>
-      <int Value="872" Name="FirstVisibleLine"/>
-      <int Value="885" Name="CurrentLine"/>
+      <wxString Value="/home/amwink/software/cpp/bis/probis/src/probis.cpp" Name="FileName"/>
+      <int Value="0" Name="FirstVisibleLine"/>
+      <int Value="0" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>
     <TabInfo>
-      <wxString Value="/home/amwink/software/cpp/bis/probis/src/probis.cpp" Name="FileName"/>
-      <int Value="0" Name="FirstVisibleLine"/>
+      <wxString Value="/home/amwink/software/cpp/bis/canabis/include/bisimage.hpp" Name="FileName"/>
+      <int Value="6" Name="FirstVisibleLine"/>
+      <int Value="20" Name="CurrentLine"/>
+      <wxArrayString Name="Bookmarks"/>
+      <IntVector Name="CollapsedFolds"/>
+    </TabInfo>
+    <TabInfo>
+      <wxString Value="/home/amwink/software/cpp/bis/canabis/include/bisimage_types.hpp" Name="FileName"/>
+      <int Value="135" Name="FirstVisibleLine"/>
       <int Value="0" Name="CurrentLine"/>
+      <wxArrayString Name="Bookmarks"/>
+      <IntVector Name="CollapsedFolds"/>
+    </TabInfo>
+    <TabInfo>
+      <wxString Value="/home/amwink/software/cpp/bis/canabis/include/bisimage_maths.hpp" Name="FileName"/>
+      <int Value="893" Name="FirstVisibleLine"/>
+      <int Value="911" Name="CurrentLine"/>
       <wxArrayString Name="Bookmarks"/>
       <IntVector Name="CollapsedFolds"/>
     </TabInfo>

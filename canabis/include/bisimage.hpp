@@ -16,8 +16,9 @@
  *
  * Including Gaussian filters/noise and 3D/4D vectors
  */
+#ifdef noxtensor
 #include "bisimage_maths.hpp"
-
+#else
 
 
 /** \brief bisimage_types.hpp: basic input types, enumerations and exceptions
